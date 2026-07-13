@@ -2,7 +2,7 @@
 nixPkgs = ["...", "chromium"]
 
 [phases.build]
-cmds = ["cd backend && npm install"]
+cmds = ["npm install"]
 
 [phases.start]
-cmds = ["cd backend && npm start"]
+cmds = ["npm start"]
