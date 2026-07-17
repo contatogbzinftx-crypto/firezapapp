@@ -125,19 +125,19 @@
         <aside class="space-y-5">
           <section class="surface p-5">
             <h2 class="font-bold mb-1">Modo de aquecimento</h2>
-            <p class="text-slate-500 text-sm leading-6 mb-4">Todos os modos usam segundos altos. O primeiro envio tambem entra na fila, entao nao sai instantaneamente.</p>
+            <p class="text-slate-500 text-sm leading-6 mb-4">Escolha a cadencia do aquecimento. Iniciante e mais lento; Agressivo e mais curto e deve ficar reservado para chips maturados.</p>
             <div id="modeGrid" class="space-y-2">
-              <label class="mode-card active block p-4" data-mode="iniciante"><input type="radio" name="warmupMode" value="iniciante" checked><div class="flex justify-between gap-3"><strong>Iniciante</strong><span class="text-xs text-slate-500">120-180s</span></div><p class="text-sm text-slate-400 mt-2">Para chips novos ou retomando atividade.</p></label>
-              <label class="mode-card block p-4" data-mode="leve"><input type="radio" name="warmupMode" value="leve"><div class="flex justify-between gap-3"><strong>Leve</strong><span class="text-xs text-slate-500">180-300s</span></div><p class="text-sm text-slate-400 mt-2">Volume baixo, cadencia natural e segura.</p></label>
-              <label class="mode-card block p-4" data-mode="moderado"><input type="radio" name="warmupMode" value="moderado"><div class="flex justify-between gap-3"><strong>Moderado</strong><span class="text-xs text-slate-500">300-480s</span></div><p class="text-sm text-slate-400 mt-2">Para chips com algum historico de uso.</p></label>
-              <label class="mode-card block p-4" data-mode="agressivo"><input type="radio" name="warmupMode" value="agressivo"><div class="flex justify-between gap-3"><strong>Agressivo</strong><span class="text-xs text-amber-300">480-720s</span></div><p class="text-sm text-amber-200/80 mt-2">Use somente em chips mais maturados. Ainda assim, os delays sao altos.</p></label>
+              <label class="mode-card active block p-4" data-mode="iniciante"><input type="radio" name="warmupMode" value="iniciante" checked><div class="flex justify-between gap-3"><strong>Iniciante</strong><span class="text-xs text-slate-500">mais lento</span></div><p class="text-sm text-slate-400 mt-2">Para chips novos ou retomando atividade. Cadencia mais lenta.</p></label>
+              <label class="mode-card block p-4" data-mode="leve"><input type="radio" name="warmupMode" value="leve"><div class="flex justify-between gap-3"><strong>Leve</strong><span class="text-xs text-slate-500">lento</span></div><p class="text-sm text-slate-400 mt-2">Cadencia lenta para uso conservador.</p></label>
+              <label class="mode-card block p-4" data-mode="moderado"><input type="radio" name="warmupMode" value="moderado"><div class="flex justify-between gap-3"><strong>Moderado</strong><span class="text-xs text-slate-500">equilibrado</span></div><p class="text-sm text-slate-400 mt-2">Cadencia intermediaria para chips com algum historico.</p></label>
+              <label class="mode-card block p-4" data-mode="agressivo"><input type="radio" name="warmupMode" value="agressivo"><div class="flex justify-between gap-3"><strong>Agressivo</strong><span class="text-xs text-amber-300">mais curto</span></div><p class="text-sm text-amber-200/80 mt-2">Use somente em chips mais maturados. E o modo com menor intervalo.</p></label>
             </div>
           </section>
 
           <section class="surface p-5">
             <label class="block mb-4"><span class="text-slate-300 text-sm font-semibold block mb-2">Texto base</span><textarea id="baseText" rows="4" class="field px-4 py-3 text-sm resize-none">Ola, tudo bem? Como voce esta?</textarea></label>
             <div class="grid grid-cols-3 gap-2"><button id="btnStart" onclick="startConversation()" class="btn btn-primary px-4 py-3 opacity-50 cursor-not-allowed" disabled>Iniciar</button><button onclick="pauseConversation()" class="btn btn-muted px-4 py-3">Pausar</button><button onclick="stopConversation()" class="btn btn-danger px-4 py-3">Parar</button></div>
-            <p id="modeSummary" class="text-xs text-slate-500 leading-5 mt-4">Modo atual: Iniciante. Primeiro envio entre 120 e 180s; demais mensagens entre 120 e 180s.</p>
+            <p id="modeSummary" class="text-xs text-slate-500 leading-5 mt-4">Modo atual: Iniciante. Cadencia mais lenta para chips novos.</p>
           </section>
         </aside>
       </section>
@@ -149,10 +149,10 @@
     const pollIntervals = { 1: null, 2: null };
     let chipStatus = { 1: 'disconnected', 2: 'disconnected' };
     const modeCopy = {
-      iniciante: 'Modo atual: Iniciante. Primeiro envio entre 120 e 180s; demais mensagens entre 120 e 180s.',
-      leve: 'Modo atual: Leve. Primeiro envio entre 180 e 300s; demais mensagens entre 180 e 300s.',
-      moderado: 'Modo atual: Moderado. Primeiro envio entre 300 e 480s; demais mensagens entre 300 e 480s.',
-      agressivo: 'Modo atual: Agressivo. Apenas chips maturados. Primeiro envio entre 480 e 720s; demais mensagens entre 480 e 720s.'
+      iniciante: 'Modo atual: Iniciante. Cadencia mais lenta para chips novos.',
+      leve: 'Modo atual: Leve. Cadencia lenta e conservadora.',
+      moderado: 'Modo atual: Moderado. Cadencia intermediaria para chips com historico.',
+      agressivo: 'Modo atual: Agressivo. Menor intervalo, somente para chips maturados.'
     };
 
     window.addEventListener('load', () => {

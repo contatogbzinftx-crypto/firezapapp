@@ -110,32 +110,32 @@ function buildPuppeteerConfig() {
 const warmupModes = {
   iniciante: {
     label: 'Iniciante',
-    firstDelayMin: 120,
-    firstDelayMax: 180,
-    delayMin: 120,
-    delayMax: 180
+    firstDelayMin: 480,
+    firstDelayMax: 720,
+    delayMin: 480,
+    delayMax: 720
   },
   leve: {
     label: 'Leve',
-    firstDelayMin: 180,
-    firstDelayMax: 300,
-    delayMin: 180,
-    delayMax: 300
-  },
-  moderado: {
-    label: 'Moderado',
     firstDelayMin: 300,
     firstDelayMax: 480,
     delayMin: 300,
     delayMax: 480
   },
+  moderado: {
+    label: 'Moderado',
+    firstDelayMin: 180,
+    firstDelayMax: 300,
+    delayMin: 180,
+    delayMax: 300
+  },
   agressivo: {
     label: 'Agressivo',
-    firstDelayMin: 480,
-    firstDelayMax: 720,
-    delayMin: 480,
-    delayMax: 720,
-    warning: 'Use apenas em chips mais maturados. Mesmo neste modo, os intervalos seguem altos.'
+    firstDelayMin: 120,
+    firstDelayMax: 180,
+    delayMin: 120,
+    delayMax: 180,
+    warning: 'Use apenas em chips mais maturados. Este e o modo com menor intervalo.'
   }
 };
 
@@ -168,10 +168,6 @@ function getWarmupMode(mode) {
 
 function randomSeconds(min, max) {
   return Math.round(min + Math.random() * (max - min)) * 1000;
-}
-
-function secondsLabel(ms) {
-  return `${Math.round(ms / 1000)}s`;
 }
 
 function pushSystemLog(room, text) {
@@ -405,7 +401,7 @@ async function sendInitialMessage(roomId) {
 
   const mode = getWarmupMode(room.warmupMode);
   const initialDelay = randomSeconds(mode.firstDelayMin, mode.firstDelayMax);
-  pushSystemLog(room, `Primeira mensagem agendada em ${secondsLabel(initialDelay)} (${mode.label}).`);
+  pushSystemLog(room, `Primeira mensagem agendada no modo ${mode.label}.`);
 
   clearTimeout(room.conversationInterval);
   room.conversationInterval = setTimeout(async () => {
@@ -443,7 +439,7 @@ function scheduleNextMessage(roomId, senderChipId) {
   const mode = getWarmupMode(room.warmupMode);
   const variation = variations[Math.floor(Math.random() * variations.length)];
   const delay = randomSeconds(mode.delayMin, mode.delayMax);
-  pushSystemLog(room, `Proxima mensagem agendada em ${secondsLabel(delay)} (${mode.label}).`);
+  pushSystemLog(room, `Proxima mensagem agendada no modo ${mode.label}.`);
 
   clearTimeout(room.conversationInterval);
   room.conversationInterval = setTimeout(async () => {
