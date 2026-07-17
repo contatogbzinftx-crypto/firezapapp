@@ -106,29 +106,85 @@ function buildPuppeteerConfig() {
   };
 }
 
-// Mensagens com tempo variado (rápidas e demoradas)
+// Perfis de aquecimento conservadores. Todos usam janelas longas para reduzir volume e previsibilidade.
+const warmupModes = {
+  iniciante: {
+    label: 'Iniciante',
+    firstDelayMin: 120,
+    firstDelayMax: 180,
+    delayMin: 120,
+    delayMax: 180
+  },
+  leve: {
+    label: 'Leve',
+    firstDelayMin: 180,
+    firstDelayMax: 300,
+    delayMin: 180,
+    delayMax: 300
+  },
+  moderado: {
+    label: 'Moderado',
+    firstDelayMin: 300,
+    firstDelayMax: 480,
+    delayMin: 300,
+    delayMax: 480
+  },
+  agressivo: {
+    label: 'Agressivo',
+    firstDelayMin: 480,
+    firstDelayMax: 720,
+    delayMin: 480,
+    delayMax: 720,
+    warning: 'Use apenas em chips mais maturados. Mesmo neste modo, os intervalos seguem altos.'
+  }
+};
+
 const variations = [
-  { text: 'Estou bem sim, e você?', delayMin: 2, delayMax: 4 },
-  { text: 'Tudo ótimo por aqui!', delayMin: 8, delayMax: 15 },
-  { text: 'Que bom saber!', delayMin: 1, delayMax: 3 },
-  { text: 'Sim, estou muito bem!', delayMin: 10, delayMax: 20 },
-  { text: 'Ótimo, obrigado por perguntar!', delayMin: 3, delayMax: 6 },
-  { text: 'Tudo certo, e contigo?', delayMin: 5, delayMax: 10 },
-  { text: 'Feliz em saber disso!', delayMin: 15, delayMax: 30 },
-  { text: 'Que legal!', delayMin: 2, delayMax: 5 },
-  { text: 'Estou muito bem, obrigado!', delayMin: 12, delayMax: 25 },
-  { text: 'Sim, tudo tranquilo!', delayMin: 4, delayMax: 8 },
-  { text: 'Haha verdade!', delayMin: 1, delayMax: 3 },
-  { text: 'Ah sério? Conta mais!', delayMin: 6, delayMax: 12 },
-  { text: 'Nossa, nem me fale kkk', delayMin: 3, delayMax: 7 },
-  { text: 'Concordo totalmente!', delayMin: 10, delayMax: 18 },
-  { text: 'É isso mesmo mano!', delayMin: 5, delayMax: 9 },
-  { text: 'Top demais!', delayMin: 1, delayMax: 4 },
-  { text: 'Daora!', delayMin: 20, delayMax: 40 },
-  { text: 'Boa tarde!', delayMin: 30, delayMax: 60 },
-  { text: 'Vou mandar foto depois', delayMin: 15, delayMax: 25 },
-  { text: 'Fala irmão, beleza?', delayMin: 2, delayMax: 5 },
+  'Estou bem sim, e voce?',
+  'Tudo otimo por aqui!',
+  'Que bom saber!',
+  'Sim, estou muito bem!',
+  'Otimo, obrigado por perguntar!',
+  'Tudo certo, e contigo?',
+  'Feliz em saber disso!',
+  'Que legal!',
+  'Estou muito bem, obrigado!',
+  'Sim, tudo tranquilo!',
+  'Haha verdade!',
+  'Ah serio? Conta mais!',
+  'Nossa, nem me fale kkk',
+  'Concordo totalmente!',
+  'E isso mesmo mano!',
+  'Top demais!',
+  'Daora!',
+  'Boa tarde!',
+  'Depois te mando melhor',
+  'Fala irmao, beleza?'
 ];
+
+function getWarmupMode(mode) {
+  return warmupModes[mode] || warmupModes.iniciante;
+}
+
+function randomSeconds(min, max) {
+  return Math.round(min + Math.random() * (max - min)) * 1000;
+}
+
+function secondsLabel(ms) {
+  return `${Math.round(ms / 1000)}s`;
+}
+
+function pushSystemLog(room, text) {
+  Object.keys(room.sessions).forEach((chipId) => {
+    if (room.sessions[chipId]) {
+      room.sessions[chipId].messages.push({
+        from: 'Sistema',
+        text,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+}
 
 // ===== Middleware de autenticação por código =====
 function authMiddleware(req, res, next) {
@@ -306,12 +362,13 @@ app.post('/api/disconnect/:chipId', authMiddleware, async (req, res) => {
 // ===== Iniciar conversa =====
 app.post('/api/conversation/start', authMiddleware, (req, res) => {
   const roomId = req.query.room;
-  const { text } = req.body;
+  const { text, mode } = req.body;
   if (!roomId) return res.status(400).json({ error: 'Room não informado' });
 
   const room = getRoom(roomId);
 
   if (text) room.baseText = text;
+  room.warmupMode = warmupModes[mode] ? mode : 'iniciante';
 
   if (room.conversationActive) {
     return res.json({ message: 'Conversa já está ativa' });
@@ -335,7 +392,9 @@ app.post('/api/conversation/start', authMiddleware, (req, res) => {
   res.json({
     success: true,
     message: 'Conversa iniciada!',
-    text: room.baseText
+    text: room.baseText,
+    mode: room.warmupMode,
+    delays: getWarmupMode(room.warmupMode)
   });
 });
 
@@ -344,24 +403,33 @@ async function sendInitialMessage(roomId) {
   const room = rooms[roomId];
   if (!room || !room.conversationActive) return;
 
-  try {
-    const phoneNumber = room.sessions['2']?.phoneNumber;
-    if (!phoneNumber) return;
+  const mode = getWarmupMode(room.warmupMode);
+  const initialDelay = randomSeconds(mode.firstDelayMin, mode.firstDelayMax);
+  pushSystemLog(room, `Primeira mensagem agendada em ${secondsLabel(initialDelay)} (${mode.label}).`);
 
-    await room.clients['1'].sendMessage(`${phoneNumber}@c.us`, room.baseText);
-    console.log(`📤 [${roomId}] Chip 1 → Chip 2: ${room.baseText}`);
+  clearTimeout(room.conversationInterval);
+  room.conversationInterval = setTimeout(async () => {
+    if (!room.conversationActive) return;
 
-    room.sessions['1'].messages.push({
-      from: 'Chip 1',
-      text: room.baseText,
-      timestamp: new Date().toISOString()
-    });
+    try {
+      const phoneNumber = room.sessions['2']?.phoneNumber;
+      if (!phoneNumber) return;
 
-    scheduleNextMessage(roomId, 2);
-  } catch (error) {
-    console.error(`Erro mensagem inicial [${roomId}]:`, error);
-    room.conversationActive = false;
-  }
+      await room.clients['1'].sendMessage(`${phoneNumber}@c.us`, room.baseText);
+      console.log(`[${roomId}] Chip 1 -> Chip 2: ${room.baseText}`);
+
+      room.sessions['1'].messages.push({
+        from: 'Chip 1',
+        text: room.baseText,
+        timestamp: new Date().toISOString()
+      });
+
+      scheduleNextMessage(roomId, 2);
+    } catch (error) {
+      console.error(`Erro mensagem inicial [${roomId}]:`, error);
+      room.conversationActive = false;
+    }
+  }, initialDelay);
 }
 
 // ===== Ping-pong com tempo variável =====
@@ -372,8 +440,10 @@ function scheduleNextMessage(roomId, senderChipId) {
   const fromChip = String(senderChipId);
   const toChip = fromChip === '1' ? '2' : '1';
 
+  const mode = getWarmupMode(room.warmupMode);
   const variation = variations[Math.floor(Math.random() * variations.length)];
-  const delay = (variation.delayMin + Math.random() * (variation.delayMax - variation.delayMin)) * 1000;
+  const delay = randomSeconds(mode.delayMin, mode.delayMax);
+  pushSystemLog(room, `Proxima mensagem agendada em ${secondsLabel(delay)} (${mode.label}).`);
 
   clearTimeout(room.conversationInterval);
   room.conversationInterval = setTimeout(async () => {
@@ -389,12 +459,12 @@ function scheduleNextMessage(roomId, senderChipId) {
       const phoneNumber = room.sessions[toChip]?.phoneNumber;
       if (!phoneNumber) return;
 
-      await room.clients[fromChip].sendMessage(`${phoneNumber}@c.us`, variation.text);
-      console.log(`📤 [${roomId}] Chip ${fromChip} → Chip ${toChip}: ${variation.text}`);
+      await room.clients[fromChip].sendMessage(`${phoneNumber}@c.us`, variation);
+      console.log(`[${roomId}] Chip ${fromChip} -> Chip ${toChip}: ${variation}`);
 
       room.sessions[fromChip].messages.push({
         from: `Chip ${fromChip}`,
-        text: variation.text,
+        text: variation,
         timestamp: new Date().toISOString()
       });
 

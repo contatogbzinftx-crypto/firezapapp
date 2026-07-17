@@ -1,398 +1,248 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>FireZap</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        * { font-family: 'Inter', system-ui, sans-serif; }
-        body { background: #0c0f14; color: #f8fafc; }
-        .app-shell { background: radial-gradient(circle at top left, rgba(20,184,166,.12), transparent 34%), linear-gradient(180deg, #10141c 0%, #0c0f14 58%); }
-        .panel { background: rgba(17, 24, 39, .78); border: 1px solid rgba(148, 163, 184, .16); border-radius: 8px; box-shadow: 0 24px 80px rgba(0,0,0,.22); }
-        .soft-panel { background: rgba(15, 23, 42, .62); border: 1px solid rgba(148, 163, 184, .14); border-radius: 8px; }
-        .brand-mark { background: linear-gradient(135deg, #f97316, #ef4444); box-shadow: 0 14px 34px rgba(249, 115, 22, .24); }
-        .btn { border-radius: 8px; font-weight: 700; transition: transform .18s ease, background .18s ease, border-color .18s ease, opacity .18s ease; }
-        .btn:active { transform: translateY(1px); }
-        .btn-primary { background: #14b8a6; color: #042f2e; }
-        .btn-primary:hover { background: #2dd4bf; }
-        .btn-danger { background: rgba(239, 68, 68, .12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, .22); }
-        .btn-danger:hover { background: rgba(239, 68, 68, .18); }
-        .btn-muted { background: rgba(148, 163, 184, .1); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, .14); }
-        .btn-muted:hover { background: rgba(148, 163, 184, .15); }
-        .field { background: rgba(2, 6, 23, .45); border: 1px solid rgba(148, 163, 184, .18); border-radius: 8px; color: white; outline: none; }
-        .field:focus { border-color: #14b8a6; box-shadow: 0 0 0 3px rgba(20, 184, 166, .14); }
-        .status-dot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; }
-        .status-connected { background: #22c55e; box-shadow: 0 0 18px rgba(34,197,94,.7); }
-        .status-connecting { background: #f59e0b; animation: pulse 1s infinite; }
-        .status-disconnected { background: #64748b; }
-        .status-error { background: #ef4444; box-shadow: 0 0 18px rgba(239,68,68,.45); }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-        .message-bubble { background: rgba(15, 23, 42, .88); border: 1px solid rgba(148, 163, 184, .12); border-radius: 8px; padding: 10px 12px; }
-        .message-bubble-1 { border-left: 3px solid #14b8a6; }
-        .message-bubble-2 { border-left: 3px solid #60a5fa; }
-        .log-container { max-height: 360px; overflow-y: auto; }
-        .log-container::-webkit-scrollbar { width: 7px; }
-        .log-container::-webkit-scrollbar-track { background: rgba(15, 23, 42, .8); }
-        .log-container::-webkit-scrollbar-thumb { background: #334155; border-radius: 999px; }
-        .hidden { display: none !important; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FireZap</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    * { font-family: Inter, system-ui, sans-serif; }
+    body { background: #07090d; color: #f7f8fb; }
+    .shell { min-height: 100vh; background: linear-gradient(180deg, #0b0f16 0%, #07090d 46%, #06070a 100%); }
+    .surface { background: rgba(13, 17, 24, .92); border: 1px solid rgba(255,255,255,.08); border-radius: 8px; box-shadow: 0 24px 90px rgba(0,0,0,.34); }
+    .surface-soft { background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.075); border-radius: 8px; }
+    .field { width: 100%; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.1); border-radius: 8px; color: #fff; outline: none; }
+    .field:focus { border-color: rgba(255,255,255,.34); box-shadow: 0 0 0 3px rgba(255,255,255,.055); }
+    .btn { border-radius: 8px; font-weight: 700; transition: background .18s, border-color .18s, opacity .18s, transform .18s; }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { color: #080a0e; background: #f7f8fb; }
+    .btn-primary:hover { background: #dfe3ea; }
+    .btn-muted { color: #d8dce5; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.09); }
+    .btn-muted:hover { background: rgba(255,255,255,.075); }
+    .btn-danger { color: #ffb4b4; background: rgba(255,86,86,.09); border: 1px solid rgba(255,86,86,.18); }
+    .btn-danger:hover { background: rgba(255,86,86,.14); }
+    .mode-card { background: rgba(255,255,255,.032); border: 1px solid rgba(255,255,255,.08); border-radius: 8px; cursor: pointer; }
+    .mode-card.active { background: rgba(247,248,251,.105); border-color: rgba(247,248,251,.36); }
+    .mode-card input { display: none; }
+    .status-dot { width: 9px; height: 9px; border-radius: 999px; display: inline-block; }
+    .status-connected { background: #47d18c; box-shadow: 0 0 18px rgba(71,209,140,.58); }
+    .status-connecting { background: #d7a84b; animation: pulse 1s infinite; }
+    .status-disconnected { background: #596172; }
+    .status-error { background: #ff5b5b; box-shadow: 0 0 18px rgba(255,91,91,.42); }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .38; } }
+    .log-container { max-height: 330px; overflow-y: auto; }
+    .log-container::-webkit-scrollbar { width: 7px; }
+    .log-container::-webkit-scrollbar-track { background: rgba(255,255,255,.035); }
+    .log-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 999px; }
+    .message { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.075); border-radius: 8px; padding: 10px 12px; }
+    .hidden { display: none !important; }
+  </style>
 </head>
-<body class="app-shell min-h-screen">
-    <div id="toast" class="hidden fixed right-5 top-5 z-50 max-w-md panel px-4 py-3 text-sm text-slate-100"></div>
+<body class="shell">
+  <div id="toast" class="hidden fixed right-5 top-5 z-50 max-w-md surface px-4 py-3 text-sm"></div>
 
-    <div id="loginScreen" class="min-h-screen flex items-center justify-center p-6">
-        <div class="panel p-8 max-w-md w-full">
-            <div class="mb-8">
-                <div class="brand-mark h-11 w-11 rounded-lg mb-5 flex items-center justify-center text-2xl">🔥</div>
-                <h1 class="text-3xl font-extrabold tracking-tight">FireZap</h1>
-                <p class="text-slate-400 text-sm mt-2">Acesse seu painel de aquecimento e conecte os chips.</p>
-            </div>
-            <div class="space-y-4">
-                <label class="block">
-                    <span class="text-slate-300 text-sm font-semibold block mb-2">Nome de usuario</span>
-                    <input type="text" id="loginUser" placeholder="Ex: Joao" class="field w-full px-4 py-3" />
-                </label>
-                <label class="block">
-                    <span class="text-slate-300 text-sm font-semibold block mb-2">Codigo secreto</span>
-                    <input type="password" id="loginCode" placeholder="Digite seu codigo" class="field w-full px-4 py-3" onkeydown="if(event.key==='Enter') doLogin()" />
-                </label>
-                <button onclick="doLogin()" class="btn btn-primary w-full py-3">Entrar</button>
-                <p id="loginError" class="text-red-300 text-sm hidden"></p>
-            </div>
+  <main id="loginScreen" class="min-h-screen flex items-center justify-center p-5">
+    <section class="surface w-full max-w-sm p-7">
+      <div class="mb-8">
+        <p class="text-xs uppercase tracking-[0.28em] text-slate-500 mb-3">Private access</p>
+        <h1 class="text-3xl font-extrabold tracking-tight">FireZap</h1>
+        <p class="text-slate-400 text-sm mt-3 leading-6">Painel reservado para conectar chips e controlar conversas com intervalos longos.</p>
+      </div>
+      <div class="space-y-4">
+        <label class="block">
+          <span class="text-slate-300 text-sm font-semibold block mb-2">Usuario</span>
+          <input type="text" id="loginUser" placeholder="Seu nome" class="field px-4 py-3" />
+        </label>
+        <label class="block">
+          <span class="text-slate-300 text-sm font-semibold block mb-2">Codigo</span>
+          <input type="password" id="loginCode" placeholder="Codigo secreto" class="field px-4 py-3" onkeydown="if(event.key==='Enter') doLogin()" />
+        </label>
+        <button onclick="doLogin()" class="btn btn-primary w-full py-3">Entrar</button>
+        <p id="loginError" class="text-red-300 text-sm hidden"></p>
+      </div>
+    </section>
+  </main>
+
+  <main id="mainScreen" class="hidden min-h-screen p-5 md:p-8">
+    <div class="max-w-7xl mx-auto">
+      <header class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-7">
+        <div>
+          <p class="text-xs uppercase tracking-[0.28em] text-slate-500 mb-3">Warmup console</p>
+          <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight">FireZap</h1>
+          <p class="text-slate-400 text-sm mt-2">Sessao de <span id="userNameDisplay" class="text-slate-200 font-semibold"></span></p>
         </div>
-    </div>
-
-    <div id="mainScreen" class="hidden min-h-screen p-5 md:p-8">
-        <div class="max-w-6xl mx-auto">
-            <header class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-7">
-                <div class="flex items-center gap-4">
-                    <div class="brand-mark h-12 w-12 rounded-lg flex items-center justify-center text-2xl">🔥</div>
-                    <div>
-                        <h1 class="text-2xl font-extrabold tracking-tight">FireZap</h1>
-                        <p class="text-slate-400 text-sm">Sessao de <span id="userNameDisplay" class="text-teal-300 font-semibold"></span></p>
-                    </div>
-                </div>
-                <div class="flex flex-wrap items-center gap-3 text-sm">
-                    <button onclick="goToVideos()" class="btn btn-muted px-3 py-2">Biblioteca</button>
-                    <span id="conversationStatus" class="soft-panel px-3 py-2 text-slate-300">Pausado</span>
-                    <span class="text-slate-500" id="timeDisplay"></span>
-                    <button onclick="logout()" class="btn btn-muted px-3 py-2">Sair</button>
-                </div>
-            </header>
-
-            <section class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                <div class="panel p-5">
-                    <div class="flex justify-between items-start mb-5">
-                        <div>
-                            <div class="flex items-center gap-3"><span class="status-dot status-disconnected" id="statusDot1"></span><h2 class="font-bold">Chip 1</h2></div>
-                            <p id="phoneNumber1" class="text-slate-400 text-sm mt-2">Nao conectado</p>
-                        </div>
-                        <span id="chipState1" class="text-xs uppercase tracking-wide text-slate-500">offline</span>
-                    </div>
-                    <div id="qrContainer1" class="hidden bg-white rounded-lg p-4 mb-5 flex flex-col justify-center items-center">
-                        <img id="qr1" src="" alt="QR Code" class="w-52 h-52" />
-                        <p class="text-xs text-slate-500 text-center mt-3">Escaneie no WhatsApp do Chip 1</p>
-                    </div>
-                    <div id="chipError1" class="hidden mb-4 rounded-lg border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200"></div>
-                    <div class="flex gap-2">
-                        <button onclick="connectChip(1)" class="btn btn-primary flex-1 px-4 py-2.5">Conectar</button>
-                        <button onclick="disconnectChip(1)" class="btn btn-danger px-4 py-2.5">Desconectar</button>
-                    </div>
-                </div>
-
-                <div class="panel p-5">
-                    <div class="flex justify-between items-start mb-5">
-                        <div>
-                            <div class="flex items-center gap-3"><span class="status-dot status-disconnected" id="statusDot2"></span><h2 class="font-bold">Chip 2</h2></div>
-                            <p id="phoneNumber2" class="text-slate-400 text-sm mt-2">Nao conectado</p>
-                        </div>
-                        <span id="chipState2" class="text-xs uppercase tracking-wide text-slate-500">offline</span>
-                    </div>
-                    <div id="qrContainer2" class="hidden bg-white rounded-lg p-4 mb-5 flex flex-col justify-center items-center">
-                        <img id="qr2" src="" alt="QR Code" class="w-52 h-52" />
-                        <p class="text-xs text-slate-500 text-center mt-3">Escaneie no WhatsApp do Chip 2</p>
-                    </div>
-                    <div id="chipError2" class="hidden mb-4 rounded-lg border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200"></div>
-                    <div class="flex gap-2">
-                        <button onclick="connectChip(2)" class="btn btn-primary flex-1 px-4 py-2.5">Conectar</button>
-                        <button onclick="disconnectChip(2)" class="btn btn-danger px-4 py-2.5">Desconectar</button>
-                    </div>
-                </div>
-            </section>
-
-            <section class="panel p-5 mt-5">
-                <div class="flex flex-col lg:flex-row gap-4 lg:items-end">
-                    <label class="flex-1">
-                        <span class="text-slate-300 text-sm font-semibold block mb-2">Texto base</span>
-                        <input type="text" id="baseText" value="Ola, tudo bem? Como voce esta?" class="field w-full px-4 py-3 text-sm" />
-                    </label>
-                    <div class="flex flex-wrap gap-2">
-                        <button id="btnStart" onclick="startConversation()" class="btn btn-primary px-5 py-3 opacity-50 cursor-not-allowed" disabled>Iniciar</button>
-                        <button onclick="pauseConversation()" class="btn btn-muted px-5 py-3">Pausar</button>
-                        <button onclick="stopConversation()" class="btn btn-danger px-5 py-3">Parar</button>
-                    </div>
-                </div>
-            </section>
-
-            <section class="panel p-5 mt-5">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="font-bold">Log de conversa</h3>
-                    <button onclick="clearLogsUI()" class="btn btn-muted px-3 py-2 text-sm">Limpar</button>
-                </div>
-                <div id="logContainer" class="log-container space-y-2 text-sm">
-                    <div class="text-slate-500 text-center py-8">Aguardando mensagens...</div>
-                </div>
-            </section>
+        <div class="flex flex-wrap items-center gap-2 text-sm">
+          <button onclick="goToVideos()" class="btn btn-muted px-3 py-2">Biblioteca</button>
+          <span id="conversationStatus" class="surface-soft px-3 py-2 text-slate-300">Pausado</span>
+          <span class="text-slate-500 px-2" id="timeDisplay"></span>
+          <button onclick="logout()" class="btn btn-muted px-3 py-2">Sair</button>
         </div>
+      </header>
+
+      <section class="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-5">
+        <div class="space-y-5">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div class="surface p-5">
+              <div class="flex justify-between items-start mb-5">
+                <div>
+                  <div class="flex items-center gap-3"><span class="status-dot status-disconnected" id="statusDot1"></span><h2 class="font-bold">Chip 1</h2></div>
+                  <p id="phoneNumber1" class="text-slate-400 text-sm mt-2">Nao conectado</p>
+                </div>
+                <span id="chipState1" class="text-xs uppercase tracking-wide text-slate-500">offline</span>
+              </div>
+              <div id="qrContainer1" class="hidden bg-white rounded-lg p-4 mb-5 flex flex-col justify-center items-center">
+                <img id="qr1" src="" alt="QR Code" class="w-52 h-52" />
+                <p class="text-xs text-slate-500 text-center mt-3">Escaneie no WhatsApp do Chip 1</p>
+              </div>
+              <div id="chipError1" class="hidden mb-4 rounded-lg border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200"></div>
+              <div class="flex gap-2"><button onclick="connectChip(1)" class="btn btn-primary flex-1 px-4 py-3">Conectar</button><button onclick="disconnectChip(1)" class="btn btn-danger px-4 py-3">Desconectar</button></div>
+            </div>
+
+            <div class="surface p-5">
+              <div class="flex justify-between items-start mb-5">
+                <div>
+                  <div class="flex items-center gap-3"><span class="status-dot status-disconnected" id="statusDot2"></span><h2 class="font-bold">Chip 2</h2></div>
+                  <p id="phoneNumber2" class="text-slate-400 text-sm mt-2">Nao conectado</p>
+                </div>
+                <span id="chipState2" class="text-xs uppercase tracking-wide text-slate-500">offline</span>
+              </div>
+              <div id="qrContainer2" class="hidden bg-white rounded-lg p-4 mb-5 flex flex-col justify-center items-center">
+                <img id="qr2" src="" alt="QR Code" class="w-52 h-52" />
+                <p class="text-xs text-slate-500 text-center mt-3">Escaneie no WhatsApp do Chip 2</p>
+              </div>
+              <div id="chipError2" class="hidden mb-4 rounded-lg border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200"></div>
+              <div class="flex gap-2"><button onclick="connectChip(2)" class="btn btn-primary flex-1 px-4 py-3">Conectar</button><button onclick="disconnectChip(2)" class="btn btn-danger px-4 py-3">Desconectar</button></div>
+            </div>
+          </div>
+
+          <section class="surface p-5">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-bold">Log de conversa</h3><button onclick="clearLogsUI()" class="btn btn-muted px-3 py-2 text-sm">Limpar</button></div>
+            <div id="logContainer" class="log-container space-y-2 text-sm"><div class="text-slate-500 text-center py-8">Aguardando mensagens...</div></div>
+          </section>
+        </div>
+
+        <aside class="space-y-5">
+          <section class="surface p-5">
+            <h2 class="font-bold mb-1">Modo de aquecimento</h2>
+            <p class="text-slate-500 text-sm leading-6 mb-4">Todos os modos usam segundos altos. O primeiro envio tambem entra na fila, entao nao sai instantaneamente.</p>
+            <div id="modeGrid" class="space-y-2">
+              <label class="mode-card active block p-4" data-mode="iniciante"><input type="radio" name="warmupMode" value="iniciante" checked><div class="flex justify-between gap-3"><strong>Iniciante</strong><span class="text-xs text-slate-500">120-180s</span></div><p class="text-sm text-slate-400 mt-2">Para chips novos ou retomando atividade.</p></label>
+              <label class="mode-card block p-4" data-mode="leve"><input type="radio" name="warmupMode" value="leve"><div class="flex justify-between gap-3"><strong>Leve</strong><span class="text-xs text-slate-500">180-300s</span></div><p class="text-sm text-slate-400 mt-2">Volume baixo, cadencia natural e segura.</p></label>
+              <label class="mode-card block p-4" data-mode="moderado"><input type="radio" name="warmupMode" value="moderado"><div class="flex justify-between gap-3"><strong>Moderado</strong><span class="text-xs text-slate-500">300-480s</span></div><p class="text-sm text-slate-400 mt-2">Para chips com algum historico de uso.</p></label>
+              <label class="mode-card block p-4" data-mode="agressivo"><input type="radio" name="warmupMode" value="agressivo"><div class="flex justify-between gap-3"><strong>Agressivo</strong><span class="text-xs text-amber-300">480-720s</span></div><p class="text-sm text-amber-200/80 mt-2">Use somente em chips mais maturados. Ainda assim, os delays sao altos.</p></label>
+            </div>
+          </section>
+
+          <section class="surface p-5">
+            <label class="block mb-4"><span class="text-slate-300 text-sm font-semibold block mb-2">Texto base</span><textarea id="baseText" rows="4" class="field px-4 py-3 text-sm resize-none">Ola, tudo bem? Como voce esta?</textarea></label>
+            <div class="grid grid-cols-3 gap-2"><button id="btnStart" onclick="startConversation()" class="btn btn-primary px-4 py-3 opacity-50 cursor-not-allowed" disabled>Iniciar</button><button onclick="pauseConversation()" class="btn btn-muted px-4 py-3">Pausar</button><button onclick="stopConversation()" class="btn btn-danger px-4 py-3">Parar</button></div>
+            <p id="modeSummary" class="text-xs text-slate-500 leading-5 mt-4">Modo atual: Iniciante. Primeiro envio entre 120 e 180s; demais mensagens entre 120 e 180s.</p>
+          </section>
+        </aside>
+      </section>
     </div>
+  </main>
 
-    <script>
-        let currentUser = null;
-        let accessCode = null;
-        let roomId = null;
-        const pollIntervals = { 1: null, 2: null };
-        let logInterval = null;
-        let chipStatus = { 1: 'disconnected', 2: 'disconnected' };
+  <script>
+    let currentUser = null, accessCode = null, roomId = null, logInterval = null;
+    const pollIntervals = { 1: null, 2: null };
+    let chipStatus = { 1: 'disconnected', 2: 'disconnected' };
+    const modeCopy = {
+      iniciante: 'Modo atual: Iniciante. Primeiro envio entre 120 e 180s; demais mensagens entre 120 e 180s.',
+      leve: 'Modo atual: Leve. Primeiro envio entre 180 e 300s; demais mensagens entre 180 e 300s.',
+      moderado: 'Modo atual: Moderado. Primeiro envio entre 300 e 480s; demais mensagens entre 300 e 480s.',
+      agressivo: 'Modo atual: Agressivo. Apenas chips maturados. Primeiro envio entre 480 e 720s; demais mensagens entre 480 e 720s.'
+    };
 
-        window.addEventListener('load', () => {
-            const savedUser = localStorage.getItem('firezap_user');
-            const savedCode = localStorage.getItem('firezap_code');
-            if (savedUser && savedCode) {
-                currentUser = savedUser;
-                accessCode = savedCode;
-                roomId = 'room_' + savedUser.toLowerCase().replace(/[^a-z0-9]/g, '_');
-                showMainScreen();
-            }
-        });
+    window.addEventListener('load', () => {
+      const savedUser = localStorage.getItem('firezap_user');
+      const savedCode = localStorage.getItem('firezap_code');
+      if (savedUser && savedCode) { currentUser = savedUser; accessCode = savedCode; roomId = 'room_' + savedUser.toLowerCase().replace(/[^a-z0-9]/g, '_'); showMainScreen(); }
+      setupModeCards();
+    });
 
-        async function doLogin() {
-            const user = document.getElementById('loginUser').value.trim();
-            const code = document.getElementById('loginCode').value.trim();
-            const errorEl = document.getElementById('loginError');
-            errorEl.classList.add('hidden');
-            if (!user || !code) return showInlineError(errorEl, 'Preencha todos os campos.');
-            try {
-                const response = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
-                const data = await response.json();
-                if (!data.success) return showInlineError(errorEl, data.error || 'Codigo invalido.');
-                currentUser = user;
-                accessCode = code;
-                roomId = 'room_' + user.toLowerCase().replace(/[^a-z0-9]/g, '_');
-                localStorage.setItem('firezap_user', user);
-                localStorage.setItem('firezap_code', code);
-                showMainScreen();
-            } catch (error) {
-                showInlineError(errorEl, 'Erro ao conectar: ' + error.message);
-            }
-        }
+    function setupModeCards() {
+      document.querySelectorAll('.mode-card').forEach(card => card.addEventListener('click', () => {
+        document.querySelectorAll('.mode-card').forEach(item => item.classList.remove('active'));
+        card.classList.add('active');
+        card.querySelector('input').checked = true;
+        document.getElementById('modeSummary').textContent = modeCopy[getSelectedMode()];
+      }));
+    }
+    function getSelectedMode() { return document.querySelector('input[name="warmupMode"]:checked')?.value || 'iniciante'; }
 
-        function showMainScreen() {
-            document.getElementById('loginScreen').classList.add('hidden');
-            document.getElementById('mainScreen').classList.remove('hidden');
-            document.getElementById('userNameDisplay').textContent = currentUser;
-            updateStartButton();
-            setTimeout(() => { startPolling(1, false); startPolling(2, false); startLogPolling(); }, 500);
-        }
+    async function doLogin() {
+      const user = document.getElementById('loginUser').value.trim();
+      const code = document.getElementById('loginCode').value.trim();
+      const errorEl = document.getElementById('loginError');
+      errorEl.classList.add('hidden');
+      if (!user || !code) return showInlineError(errorEl, 'Preencha todos os campos.');
+      try {
+        const response = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
+        const data = await response.json();
+        if (!data.success) return showInlineError(errorEl, data.error || 'Codigo invalido.');
+        currentUser = user; accessCode = code; roomId = 'room_' + user.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        localStorage.setItem('firezap_user', user); localStorage.setItem('firezap_code', code); showMainScreen();
+      } catch (error) { showInlineError(errorEl, 'Erro ao conectar: ' + error.message); }
+    }
+    function showMainScreen() { document.getElementById('loginScreen').classList.add('hidden'); document.getElementById('mainScreen').classList.remove('hidden'); document.getElementById('userNameDisplay').textContent = currentUser; updateStartButton(); setTimeout(() => { startPolling(1, false); startPolling(2, false); startLogPolling(); }, 500); }
+    function logout() { if (!confirm('Sair? Seus chips continuarao conectados no servidor.')) return; localStorage.removeItem('firezap_user'); localStorage.removeItem('firezap_code'); location.reload(); }
+    function goToVideos() { window.location.href = 'videos.html'; }
+    async function apiFetch(url, options = {}) { const separator = url.includes('?') ? '&' : '?'; const fullUrl = `${url}${separator}room=${encodeURIComponent(roomId)}`; const headers = { 'Content-Type': 'application/json', 'x-access-code': accessCode, ...(options.headers || {}) }; return fetch(fullUrl, { ...options, headers }); }
 
-        function logout() {
-            if (!confirm('Sair? Seus chips continuarao conectados no servidor.')) return;
-            localStorage.removeItem('firezap_user');
-            localStorage.removeItem('firezap_code');
-            location.reload();
-        }
+    async function connectChip(chipId) {
+      if (chipStatus[chipId] === 'connected' || chipStatus[chipId] === 'connecting') return notify(`Chip ${chipId} ja esta conectado ou conectando.`, 'warning');
+      clearChipError(chipId); chipStatus[chipId] = 'connecting'; updateStatus(chipId, 'connecting');
+      try {
+        const response = await apiFetch(`/api/connect/${chipId}`, { method: 'POST' }); const data = await response.json();
+        if (data.success) { addLogItem(`Chip ${chipId} conectando. Aguarde o QR Code.`); startPolling(chipId, true); }
+        else { showChipError(chipId, data.error || 'Nao foi possivel iniciar a conexao.'); notify(data.error || 'Erro ao conectar.', 'error'); chipStatus[chipId] = 'disconnected'; updateStatus(chipId, 'disconnected'); }
+      } catch (error) { showChipError(chipId, error.message); notify('Erro ao conectar: ' + error.message, 'error'); chipStatus[chipId] = 'disconnected'; updateStatus(chipId, 'disconnected'); }
+    }
+    async function disconnectChip(chipId) { if (!confirm(`Desconectar Chip ${chipId}?`)) return; try { await apiFetch(`/api/disconnect/${chipId}`, { method: 'POST' }); chipStatus[chipId] = 'disconnected'; updateStatus(chipId, 'disconnected'); clearChipError(chipId); document.getElementById(`phoneNumber${chipId}`).textContent = 'Nao conectado'; document.getElementById(`qrContainer${chipId}`).classList.add('hidden'); if (pollIntervals[chipId]) { clearInterval(pollIntervals[chipId]); pollIntervals[chipId] = null; } addLogItem(`Chip ${chipId} desconectado.`); updateStartButton(); } catch (error) { notify('Erro ao desconectar: ' + error.message, 'error'); } }
 
-        function goToVideos() { window.location.href = 'videos.html'; }
+    function startPolling(chipId, forceConnecting = true) {
+      if (pollIntervals[chipId]) clearInterval(pollIntervals[chipId]); if (forceConnecting) { chipStatus[chipId] = 'connecting'; updateStatus(chipId, 'connecting'); }
+      pollIntervals[chipId] = setInterval(async () => {
+        try {
+          const response = await apiFetch(`/api/status/${chipId}`); const data = await response.json();
+          if (data.qr) { document.getElementById(`qr${chipId}`).src = data.qr; document.getElementById(`qrContainer${chipId}`).classList.remove('hidden'); clearChipError(chipId); }
+          if (data.error) showChipError(chipId, data.error);
+          if (data.status === 'connected') { document.getElementById(`qrContainer${chipId}`).classList.add('hidden'); document.getElementById(`phoneNumber${chipId}`).textContent = data.phoneNumber ? `+${data.phoneNumber}` : 'Conectado'; chipStatus[chipId] = 'connected'; updateStatus(chipId, 'connected'); clearChipError(chipId); }
+          else if (data.status === 'awaiting_scan' || data.status === 'connecting') { chipStatus[chipId] = 'connecting'; updateStatus(chipId, 'connecting'); }
+          else if (data.status === 'error') { chipStatus[chipId] = 'error'; updateStatus(chipId, 'error'); }
+          else if (data.status === 'disconnected') { chipStatus[chipId] = 'disconnected'; updateStatus(chipId, 'disconnected'); }
+          updateStartButton();
+        } catch (error) { console.error('Erro status:', error); }
+      }, 2000);
+    }
+    function updateStatus(chipId, status) { const dot = document.getElementById(`statusDot${chipId}`); const label = document.getElementById(`chipState${chipId}`); dot.className = 'status-dot'; const labels = { connected: 'online', connecting: 'conectando', error: 'erro', disconnected: 'offline' }; label.textContent = labels[status] || 'offline'; if (status === 'connected') dot.classList.add('status-connected'); else if (status === 'connecting') dot.classList.add('status-connecting'); else if (status === 'error') dot.classList.add('status-error'); else dot.classList.add('status-disconnected'); }
+    function updateStartButton() { const btn = document.getElementById('btnStart'); const ready = chipStatus[1] === 'connected' && chipStatus[2] === 'connected'; btn.disabled = !ready; btn.classList.toggle('opacity-50', !ready); btn.classList.toggle('cursor-not-allowed', !ready); }
 
-        async function apiFetch(url, options = {}) {
-            const separator = url.includes('?') ? '&' : '?';
-            const fullUrl = `${url}${separator}room=${encodeURIComponent(roomId)}`;
-            const headers = { 'Content-Type': 'application/json', 'x-access-code': accessCode, ...(options.headers || {}) };
-            return fetch(fullUrl, { ...options, headers });
-        }
+    async function startConversation() {
+      if (chipStatus[1] !== 'connected' || chipStatus[2] !== 'connected') return notify('Conecte os dois chips primeiro.', 'warning');
+      const text = document.getElementById('baseText').value;
+      const mode = getSelectedMode();
+      if (mode === 'agressivo' && !confirm('Modo agressivo deve ser usado somente em chips mais maturados. Continuar?')) return;
+      try {
+        const response = await apiFetch('/api/conversation/start', { method: 'POST', body: JSON.stringify({ text, mode }) }); const data = await response.json();
+        if (data.success) { document.getElementById('conversationStatus').textContent = 'Ativa'; document.getElementById('conversationStatus').className = 'surface-soft px-3 py-2 text-emerald-300'; addLogItem(`Conversa iniciada em modo ${mode}. Aguarde o agendamento aparecer no log.`); }
+        else notify(data.error || 'Erro ao iniciar.', 'error');
+      } catch (error) { notify('Erro: ' + error.message, 'error'); }
+    }
+    async function pauseConversation() { try { await apiFetch('/api/conversation/pause', { method: 'POST' }); const s = document.getElementById('conversationStatus'); s.textContent = 'Pausado'; s.className = 'surface-soft px-3 py-2 text-amber-300'; addLogItem('Conversa pausada.'); } catch (error) { notify('Erro: ' + error.message, 'error'); } }
+    async function stopConversation() { try { await apiFetch('/api/conversation/stop', { method: 'POST' }); const s = document.getElementById('conversationStatus'); s.textContent = 'Parado'; s.className = 'surface-soft px-3 py-2 text-slate-300'; document.getElementById('logContainer').innerHTML = '<div class="text-slate-500 text-center py-8">Conversa resetada</div>'; } catch (error) { notify('Erro: ' + error.message, 'error'); } }
 
-        async function connectChip(chipId) {
-            if (chipStatus[chipId] === 'connected' || chipStatus[chipId] === 'connecting') return notify(`Chip ${chipId} ja esta conectado ou conectando.`, 'warning');
-            clearChipError(chipId);
-            chipStatus[chipId] = 'connecting';
-            updateStatus(chipId, 'connecting');
-            try {
-                const response = await apiFetch(`/api/connect/${chipId}`, { method: 'POST' });
-                const data = await response.json();
-                if (data.success) {
-                    addLogItem('system', `Chip ${chipId} conectando. Aguarde o QR Code.`);
-                    startPolling(chipId, true);
-                } else {
-                    showChipError(chipId, data.error || 'Nao foi possivel iniciar a conexao.');
-                    notify(data.error || 'Erro ao conectar.', 'error');
-                    chipStatus[chipId] = 'disconnected';
-                    updateStatus(chipId, 'disconnected');
-                }
-            } catch (error) {
-                showChipError(chipId, error.message);
-                notify('Erro ao conectar: ' + error.message, 'error');
-                chipStatus[chipId] = 'disconnected';
-                updateStatus(chipId, 'disconnected');
-            }
-        }
-
-        async function disconnectChip(chipId) {
-            if (!confirm(`Desconectar Chip ${chipId}?`)) return;
-            try {
-                await apiFetch(`/api/disconnect/${chipId}`, { method: 'POST' });
-                chipStatus[chipId] = 'disconnected';
-                updateStatus(chipId, 'disconnected');
-                clearChipError(chipId);
-                document.getElementById(`phoneNumber${chipId}`).textContent = 'Nao conectado';
-                document.getElementById(`qrContainer${chipId}`).classList.add('hidden');
-                if (pollIntervals[chipId]) { clearInterval(pollIntervals[chipId]); pollIntervals[chipId] = null; }
-                addLogItem('system', `Chip ${chipId} desconectado.`);
-                updateStartButton();
-            } catch (error) { notify('Erro ao desconectar: ' + error.message, 'error'); }
-        }
-
-        function startPolling(chipId, forceConnecting = true) {
-            if (pollIntervals[chipId]) clearInterval(pollIntervals[chipId]);
-            if (forceConnecting) { chipStatus[chipId] = 'connecting'; updateStatus(chipId, 'connecting'); }
-            pollIntervals[chipId] = setInterval(async () => {
-                try {
-                    const response = await apiFetch(`/api/status/${chipId}`);
-                    const data = await response.json();
-                    if (data.qr) {
-                        document.getElementById(`qr${chipId}`).src = data.qr;
-                        document.getElementById(`qrContainer${chipId}`).classList.remove('hidden');
-                        clearChipError(chipId);
-                    }
-                    if (data.error) showChipError(chipId, data.error);
-                    if (data.status === 'connected') {
-                        document.getElementById(`qrContainer${chipId}`).classList.add('hidden');
-                        document.getElementById(`phoneNumber${chipId}`).textContent = data.phoneNumber ? `+${data.phoneNumber}` : 'Conectado';
-                        chipStatus[chipId] = 'connected';
-                        updateStatus(chipId, 'connected');
-                        clearChipError(chipId);
-                    } else if (data.status === 'awaiting_scan' || data.status === 'connecting') {
-                        chipStatus[chipId] = 'connecting';
-                        updateStatus(chipId, 'connecting');
-                    } else if (data.status === 'error') {
-                        chipStatus[chipId] = 'error';
-                        updateStatus(chipId, 'error');
-                    } else if (data.status === 'disconnected') {
-                        chipStatus[chipId] = 'disconnected';
-                        updateStatus(chipId, 'disconnected');
-                    }
-                    updateStartButton();
-                } catch (error) { console.error('Erro status:', error); }
-            }, 2000);
-        }
-
-        function updateStatus(chipId, status) {
-            const dot = document.getElementById(`statusDot${chipId}`);
-            const label = document.getElementById(`chipState${chipId}`);
-            dot.className = 'status-dot';
-            const labels = { connected: 'online', connecting: 'conectando', error: 'erro', disconnected: 'offline' };
-            label.textContent = labels[status] || 'offline';
-            if (status === 'connected') dot.classList.add('status-connected');
-            else if (status === 'connecting') dot.classList.add('status-connecting');
-            else if (status === 'error') dot.classList.add('status-error');
-            else dot.classList.add('status-disconnected');
-        }
-
-        function updateStartButton() {
-            const btn = document.getElementById('btnStart');
-            const ready = chipStatus[1] === 'connected' && chipStatus[2] === 'connected';
-            btn.disabled = !ready;
-            btn.classList.toggle('opacity-50', !ready);
-            btn.classList.toggle('cursor-not-allowed', !ready);
-        }
-
-        async function startConversation() {
-            if (chipStatus[1] !== 'connected' || chipStatus[2] !== 'connected') return notify('Conecte os dois chips primeiro.', 'warning');
-            const text = document.getElementById('baseText').value;
-            try {
-                const response = await apiFetch('/api/conversation/start', { method: 'POST', body: JSON.stringify({ text }) });
-                const data = await response.json();
-                if (data.success || data.message) {
-                    document.getElementById('conversationStatus').textContent = 'Ativa';
-                    document.getElementById('conversationStatus').className = 'soft-panel px-3 py-2 text-emerald-300';
-                    addLogItem('system', 'Conversa iniciada.');
-                } else notify(data.error || 'Erro ao iniciar.', 'error');
-            } catch (error) { notify('Erro: ' + error.message, 'error'); }
-        }
-
-        async function pauseConversation() {
-            try {
-                await apiFetch('/api/conversation/pause', { method: 'POST' });
-                const s = document.getElementById('conversationStatus');
-                s.textContent = 'Pausado';
-                s.className = 'soft-panel px-3 py-2 text-amber-300';
-                addLogItem('system', 'Conversa pausada.');
-            } catch (error) { notify('Erro: ' + error.message, 'error'); }
-        }
-
-        async function stopConversation() {
-            try {
-                await apiFetch('/api/conversation/stop', { method: 'POST' });
-                const s = document.getElementById('conversationStatus');
-                s.textContent = 'Parado';
-                s.className = 'soft-panel px-3 py-2 text-slate-300';
-                document.getElementById('logContainer').innerHTML = '<div class="text-slate-500 text-center py-8">Conversa resetada</div>';
-            } catch (error) { notify('Erro: ' + error.message, 'error'); }
-        }
-
-        function startLogPolling() {
-            if (logInterval) clearInterval(logInterval);
-            logInterval = setInterval(async () => {
-                try {
-                    const response = await apiFetch('/api/logs');
-                    const logs = await response.json();
-                    const container = document.getElementById('logContainer');
-                    if (logs.length === 0) {
-                        if (!container.querySelector('.text-center')) container.innerHTML = '<div class="text-slate-500 text-center py-8">Aguardando mensagens...</div>';
-                        return;
-                    }
-                    container.innerHTML = logs.map(log => {
-                        const chip = log.chip === '1' ? 'Chip 1' : 'Chip 2';
-                        const cls = log.chip === '1' ? 'message-bubble-1' : 'message-bubble-2';
-                        const time = new Date(log.timestamp).toLocaleTimeString();
-                        return `<div class="message-bubble ${cls}"><span class="text-slate-500 text-xs">${time}</span> <span class="text-teal-300 font-semibold">[${chip}]</span> <span class="text-slate-100">${escapeHtml(log.text)}</span></div>`;
-                    }).join('');
-                    container.scrollTop = container.scrollHeight;
-                } catch (error) { console.error('Erro logs:', error); }
-            }, 1500);
-        }
-
-        function addLogItem(type, text) {
-            const container = document.getElementById('logContainer');
-            if (container.querySelector('.text-center')) container.innerHTML = '';
-            const time = new Date().toLocaleTimeString();
-            const div = document.createElement('div');
-            div.className = 'message-bubble border-l-4 border-emerald-400';
-            div.innerHTML = `<span class="text-slate-500 text-xs">${time}</span> <span class="text-emerald-300">${escapeHtml(text)}</span>`;
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
-        }
-
-        function clearLogsUI() { document.getElementById('logContainer').innerHTML = '<div class="text-slate-500 text-center py-8">Logs limpos</div>'; }
-        function escapeHtml(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
-        function showInlineError(el, text) { el.textContent = text; el.classList.remove('hidden'); }
-        function showChipError(chipId, text) { const el = document.getElementById(`chipError${chipId}`); el.textContent = friendlyBrowserError(text); el.classList.remove('hidden'); }
-        function clearChipError(chipId) { const el = document.getElementById(`chipError${chipId}`); el.textContent = ''; el.classList.add('hidden'); }
-        function friendlyBrowserError(text) {
-            if ((text || '').includes('Browser was not found') || (text || '').includes('executablePath')) return 'Navegador do servidor nao encontrado. Reimplante o projeto para aplicar a deteccao automatica do Chromium.';
-            return text || 'Erro desconhecido ao conectar.';
-        }
-        function notify(text, type = 'info') {
-            const toast = document.getElementById('toast');
-            const colors = { error: 'border-red-400/30 text-red-100', warning: 'border-amber-400/30 text-amber-100', info: 'border-slate-400/20 text-slate-100' };
-            toast.className = `fixed right-5 top-5 z-50 max-w-md panel px-4 py-3 text-sm ${colors[type] || colors.info}`;
-            toast.textContent = text;
-            toast.classList.remove('hidden');
-            clearTimeout(window.__toastTimer);
-            window.__toastTimer = setTimeout(() => toast.classList.add('hidden'), 4500);
-        }
-        setInterval(() => { const el = document.getElementById('timeDisplay'); if (el) el.textContent = new Date().toLocaleTimeString(); }, 1000);
-    </script>
+    function startLogPolling() { if (logInterval) clearInterval(logInterval); logInterval = setInterval(async () => { try { const response = await apiFetch('/api/logs'); const logs = await response.json(); const container = document.getElementById('logContainer'); if (logs.length === 0) { if (!container.querySelector('.text-center')) container.innerHTML = '<div class="text-slate-500 text-center py-8">Aguardando mensagens...</div>'; return; } container.innerHTML = logs.map(log => { const chip = log.chip === '1' ? 'Chip 1' : 'Chip 2'; const time = new Date(log.timestamp).toLocaleTimeString(); return `<div class="message"><span class="text-slate-500 text-xs">${time}</span> <span class="text-slate-300 font-semibold">[${chip}]</span> <span class="text-slate-100">${escapeHtml(log.text)}</span></div>`; }).join(''); container.scrollTop = container.scrollHeight; } catch (error) { console.error('Erro logs:', error); } }, 1500); }
+    function addLogItem(text) { const container = document.getElementById('logContainer'); if (container.querySelector('.text-center')) container.innerHTML = ''; const div = document.createElement('div'); div.className = 'message'; div.innerHTML = `<span class="text-slate-500 text-xs">${new Date().toLocaleTimeString()}</span> <span class="text-slate-200">${escapeHtml(text)}</span>`; container.appendChild(div); container.scrollTop = container.scrollHeight; }
+    function clearLogsUI() { document.getElementById('logContainer').innerHTML = '<div class="text-slate-500 text-center py-8">Logs limpos</div>'; }
+    function escapeHtml(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+    function showInlineError(el, text) { el.textContent = text; el.classList.remove('hidden'); }
+    function showChipError(chipId, text) { const el = document.getElementById(`chipError${chipId}`); el.textContent = text || 'Erro desconhecido ao conectar.'; el.classList.remove('hidden'); }
+    function clearChipError(chipId) { const el = document.getElementById(`chipError${chipId}`); el.textContent = ''; el.classList.add('hidden'); }
+    function notify(text, type = 'info') { const toast = document.getElementById('toast'); const colors = { error: 'border-red-400/30 text-red-100', warning: 'border-amber-400/30 text-amber-100', info: 'border-white/10 text-slate-100' }; toast.className = `fixed right-5 top-5 z-50 max-w-md surface px-4 py-3 text-sm ${colors[type] || colors.info}`; toast.textContent = text; toast.classList.remove('hidden'); clearTimeout(window.__toastTimer); window.__toastTimer = setTimeout(() => toast.classList.add('hidden'), 4500); }
+    setInterval(() => { const el = document.getElementById('timeDisplay'); if (el) el.textContent = new Date().toLocaleTimeString(); }, 1000);
+  </script>
 </body>
 </html>
-
