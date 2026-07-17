@@ -1,0 +1,6 @@
+node_modules
+sessions
+.env
+.git
+*.log
+backend/.wwebjs_cache

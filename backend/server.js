@@ -1,4 +1,5 @@
 process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
+process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
 process.env.PUPPETEER_CACHE_DIR = '/tmp/puppeteer-cache';
 
 const express = require('express');
@@ -82,7 +83,7 @@ if (SYSTEM_CHROME_PATH) {
 
 function buildPuppeteerConfig() {
   if (!CHROME_PATH || (!isWindows && !SYSTEM_CHROME_PATH)) {
-    throw new Error('Chromium do servidor nao encontrado. No Railway, confirme que o nixpacks.toml foi commitado e redeployado com o pacote chromium.');
+    throw new Error('Chromium do servidor nao encontrado em /usr/bin/chromium. O deploy precisa usar o Dockerfile deste projeto no Railway.');
   }
 
   return {
