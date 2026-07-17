@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🎥 Biblioteca de Vídeos - FireZap</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #0a0a0f; }
+        .gradient-text { background: linear-gradient(135deg, #f97316, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .card { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 16px; transition: all 0.3s; }
+        .card:hover { border-color: #f97316; }
+        .video-container { background: #0f0f1a; border-radius: 12px; overflow: hidden; }
+        .video-container video { width: 100%; display: block; }
+        .nav-btn { transition: all 0.3s; }
+        .nav-btn:hover { transform: translateY(-2px); }
+        .back-btn { transition: all 0.3s; }
+        .back-btn:hover { transform: translateX(-4px); }
+    </style>
+</head>
+<body>
+
+    <!-- ===== NAVIGATION ===== -->
+    <div class="p-6">
+        <button onclick="goBack()" class="back-btn flex items-center gap-2 text-orange-400 hover:text-orange-300 font-semibold">
+            ← Voltar ao FireZap
+        </button>
+    </div>
+
+    <!-- ===== HEADER ===== -->
+    <div class="max-w-6xl mx-auto px-6 mb-8">
+        <h1 class="text-4xl font-bold text-white">🎥 <span class="gradient-text">Biblioteca de Vídeos</span></h1>
+        <p class="text-gray-400 text-sm mt-2">Seus vídeos e históricos de conversa</p>
+        <div class="mt-4 bg-gray-800/50 border border-gray-700 rounded-lg p-4">
+            <div class="flex items-center gap-3">
+                <span class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
+                <span class="text-green-400 text-sm font-semibold">Vídeo(s) carregado(s)</span>
+                <span class="text-gray-400 text-sm ml-auto" id="videoCount">1 vídeo</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== VIDEO GRID ===== -->
+    <div class="max-w-6xl mx-auto px-6">
+        <div id="videoGrid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Videos will be loaded here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden text-center py-16">
+            <div class="text-6xl mb-4">📁</div>
+            <h3 class="text-xl font-bold text-white">Nenhum vídeo encontrado</h3>
+            <p class="text-gray-400 mt-2">Adicione vídeos para começar a organizar sua biblioteca</p>
+        </div>
+    </div>
+
+    <script>
+        // ===== Load Videos =====
+        async function loadVideos() {
+            try {
+                const response = await fetch('/api/videos');
+                const videos = await response.json();
+
+                const grid = document.getElementById('videoGrid');
+                const emptyState = document.getElementById('emptyState');
+                const countEl = document.getElementById('videoCount');
+
+                if (videos.length === 0) {
+                    grid.classList.add('hidden');
+                    emptyState.classList.remove('hidden');
+                    countEl.textContent = '0 vídeos';
+                    return;
+                }
+
+                grid.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+                countEl.textContent = `${videos.length} vídeo${videos.length > 1 ? 's' : ''}`;
+
+                videos.forEach((video, index) => {
+                    const videoCard = createVideoCard(video, index);
+                    grid.appendChild(videoCard);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar vídeos:', error);
+                document.getElementById('videoGrid').innerHTML = `
+                    <div class="text-center py-8 text-red-400">
+                        Erro ao carregar vídeos: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function createVideoCard(video, index) {
+            const div = document.createElement('div');
+            div.className = 'card overflow-hidden';
+            div.innerHTML = `
+                <div class="video-container">
+                    <video controls poster="${video.thumbnail || '/placeholder.jpg'}">
+                        <source src="${video.url}" type="video/mp4">
+                        Seu navegador não suporta vídeos HTML5.
+                    </video>
+                </div>
+                <div class="p-4">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h3 class="text-white font-bold text-lg">${escapeHtml(video.title || `Vídeo ${index + 1}`)}</h3>
+                            <p class="text-gray-400 text-sm mt-1">${video.description || 'Descrição não disponível'}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4 mt-3 text-gray-500 text-xs">
+                        <span>📹 ${formatFileSize(video.size || 0)}</span>
+                        <span>⏱️ ${formatDuration(video.duration || 0)}</span>
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button onclick="playVideo('${video.url}')" class="flex-1 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
+                            ▶️ Tocar
+                        </button>
+                        <a href="${video.url}" download class="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
+                            ⬇️ Baixar
+                        </a>
+                    </div>
+                </div>
+            `;
+            return div;
+        }
+
+        // ===== Navigation =====
+        function goBack() {
+            window.location.href = 'index.html';
+        }
+
+        function playVideo(url) {
+            window.open(url, '_blank');
+        }
+
+        // ===== Utilities =====
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds) return '00:00';
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // Load videos on page load
+        document.addEventListener('DOMContentLoaded', loadVideos);
+    </script>
+
+</body>
+</html>

@@ -4,6 +4,8 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const path = require('path');
 const os = require('os');
+const fs = require('fs');
+const { execFileSync } = require('child_process');
 require('dotenv').config();
 
 const app = express();
@@ -33,9 +35,59 @@ function getRoom(roomId) {
 
 // Detecta Chrome (Windows local ou Linux/Railway)
 const isWindows = os.platform() === 'win32';
-const CHROME_PATH = isWindows
-  ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-  : process.env.CHROME_PATH || '/usr/bin/chromium';
+function findExecutableOnPath(names) {
+  const command = isWindows ? 'where' : 'which';
+  for (const name of names) {
+    try {
+      const result = execFileSync(command, [name], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .find(Boolean);
+      if (result && fs.existsSync(result)) return result;
+    } catch (_) {
+      // Continua procurando nos outros nomes/caminhos.
+    }
+  }
+  return null;
+}
+
+const chromeCandidates = [
+  process.env.CHROME_PATH,
+  process.env.PUPPETEER_EXECUTABLE_PATH,
+  findExecutableOnPath(['chromium', 'chromium-browser', 'google-chrome-stable', 'google-chrome', 'chrome']),
+  isWindows ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : null,
+  isWindows ? 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' : null,
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/google-chrome',
+  '/app/.apt/usr/bin/google-chrome'
+].filter(Boolean);
+
+const CHROME_PATH = chromeCandidates.find(candidate => fs.existsSync(candidate));
+
+function buildPuppeteerConfig() {
+  const config = {
+    headless: 'new',
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--disable-extensions',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--disable-software-rasterizer',
+      '--disable-notifications'
+    ]
+  };
+
+  if (CHROME_PATH) {
+    config.executablePath = CHROME_PATH;
+  }
+
+  return config;
+}
 
 // Mensagens com tempo variado (rápidas e demoradas)
 const variations = [
@@ -101,7 +153,8 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
       phoneNumber: null,
       qr: null,
       status: 'connecting',
-      messages: []
+      messages: [],
+      error: null
     };
 
     const client = new Client({
@@ -109,21 +162,7 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
         clientId: `room_${roomId}_chip_${chipId}`,
         dataPath: path.resolve(__dirname, '../sessions')
       }),
-      puppeteer: {
-        headless: 'new',
-        executablePath: CHROME_PATH,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--disable-extensions',
-          '--no-first-run',
-          '--no-default-browser-check',
-          '--disable-software-rasterizer',
-          '--disable-notifications'
-        ]
-      },
+      puppeteer: buildPuppeteerConfig(),
       qrMaxRetries: 5,
       restartOnAuthFail: true
     });
@@ -185,7 +224,14 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
     });
 
     room.clients[chipId] = client;
-    await client.initialize();
+    client.initialize().catch((error) => {
+      console.error(`Erro ao inicializar Chip ${chipId}:`, error);
+      if (room.sessions[chipId]) {
+        room.sessions[chipId].status = 'error';
+        room.sessions[chipId].error = error.message;
+      }
+      delete room.clients[chipId];
+    });
 
     res.json({
       success: true,
@@ -214,6 +260,7 @@ app.get('/api/status/:chipId', authMiddleware, (req, res) => {
     status: room.sessions[chipId].status,
     qr: room.sessions[chipId].qr,
     phoneNumber: room.sessions[chipId].phoneNumber,
+    error: room.sessions[chipId].error || null,
     messages: room.sessions[chipId].messages.slice(-20)
   });
 });
@@ -387,6 +434,40 @@ app.get('/api/logs', authMiddleware, (req, res) => {
   allMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
   res.json(allMessages.slice(-50));
 });
+
+// ===== Biblioteca de Vídeos =====
+app.get('/api/videos', authMiddleware, (req, res) => {
+  const videosDir = path.join(__dirname, '../frontend/public/videos');
+
+  fs.readdir(videosDir, (err, files) => {
+    if (err) {
+      console.error('Erro ao listar vídeos:', err);
+      return res.json([]);
+    }
+
+    const videoFiles = files.filter(file =>
+      file.endsWith('.mp4') || file.endsWith('.webm') || file.endsWith('.mov')
+    );
+
+    const videos = videoFiles.map(file => {
+      const filePath = path.join(videosDir, file);
+      const stats = fs.statSync(filePath);
+
+      return {
+        url: `/videos/${file}`,
+        title: file.replace(/\.(mp4|webm|mov)$/, ''),
+        filename: file,
+        size: stats.size,
+        created: stats.birthtime
+      };
+    });
+
+    res.json(videos);
+  });
+});
+
+// Servir vídeos estáticos
+app.use('/videos', express.static(path.join(__dirname, '../frontend/public/videos')));
 
 // Inicia servidor
 const PORT = process.env.PORT || 3000;

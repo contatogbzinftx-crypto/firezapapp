@@ -3,173 +3,152 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>🔥 FireZap</title>
+    <title>FireZap</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-        * { font-family: 'Inter', sans-serif; }
-        body { background: #0a0a0f; }
-        .gradient-text { background: linear-gradient(135deg, #f97316, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .card { background: #1a1a2e; border: 1px solid #2a2a4a; border-radius: 16px; transition: all 0.3s; }
-        .card:hover { border-color: #f97316; }
-        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-        .status-connected { background: #22c55e; box-shadow: 0 0 12px #22c55e88; }
-        .status-connecting { background: #eab308; animation: pulse 1s infinite; }
-        .status-disconnected { background: #ef4444; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .message-bubble { background: #2a2a4a; border-radius: 12px; padding: 8px 14px; margin: 4px 0; }
-        .message-bubble-1 { border-left: 3px solid #f97316; }
-        .message-bubble-2 { border-left: 3px solid #ef4444; }
-        .log-container { max-height: 400px; overflow-y: auto; }
-        .log-container::-webkit-scrollbar { width: 6px; }
-        .log-container::-webkit-scrollbar-track { background: #1a1a2e; }
-        .log-container::-webkit-scrollbar-thumb { background: #f97316; border-radius: 3px; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        body { background: #0c0f14; color: #f8fafc; }
+        .app-shell { background: radial-gradient(circle at top left, rgba(20,184,166,.12), transparent 34%), linear-gradient(180deg, #10141c 0%, #0c0f14 58%); }
+        .panel { background: rgba(17, 24, 39, .78); border: 1px solid rgba(148, 163, 184, .16); border-radius: 8px; box-shadow: 0 24px 80px rgba(0,0,0,.22); }
+        .soft-panel { background: rgba(15, 23, 42, .62); border: 1px solid rgba(148, 163, 184, .14); border-radius: 8px; }
+        .brand-mark { background: linear-gradient(135deg, #14b8a6, #22c55e); }
+        .btn { border-radius: 8px; font-weight: 700; transition: transform .18s ease, background .18s ease, border-color .18s ease, opacity .18s ease; }
+        .btn:active { transform: translateY(1px); }
+        .btn-primary { background: #14b8a6; color: #042f2e; }
+        .btn-primary:hover { background: #2dd4bf; }
+        .btn-danger { background: rgba(239, 68, 68, .12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, .22); }
+        .btn-danger:hover { background: rgba(239, 68, 68, .18); }
+        .btn-muted { background: rgba(148, 163, 184, .1); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, .14); }
+        .btn-muted:hover { background: rgba(148, 163, 184, .15); }
+        .field { background: rgba(2, 6, 23, .45); border: 1px solid rgba(148, 163, 184, .18); border-radius: 8px; color: white; outline: none; }
+        .field:focus { border-color: #14b8a6; box-shadow: 0 0 0 3px rgba(20, 184, 166, .14); }
+        .status-dot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; }
+        .status-connected { background: #22c55e; box-shadow: 0 0 18px rgba(34,197,94,.7); }
+        .status-connecting { background: #f59e0b; animation: pulse 1s infinite; }
+        .status-disconnected { background: #64748b; }
+        .status-error { background: #ef4444; box-shadow: 0 0 18px rgba(239,68,68,.45); }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+        .message-bubble { background: rgba(15, 23, 42, .88); border: 1px solid rgba(148, 163, 184, .12); border-radius: 8px; padding: 10px 12px; }
+        .message-bubble-1 { border-left: 3px solid #14b8a6; }
+        .message-bubble-2 { border-left: 3px solid #60a5fa; }
+        .log-container { max-height: 360px; overflow-y: auto; }
+        .log-container::-webkit-scrollbar { width: 7px; }
+        .log-container::-webkit-scrollbar-track { background: rgba(15, 23, 42, .8); }
+        .log-container::-webkit-scrollbar-thumb { background: #334155; border-radius: 999px; }
         .hidden { display: none !important; }
     </style>
 </head>
-<body>
+<body class="app-shell min-h-screen">
+    <div id="toast" class="hidden fixed right-5 top-5 z-50 max-w-md panel px-4 py-3 text-sm text-slate-100"></div>
 
-    <!-- ===== TELA DE LOGIN ===== -->
     <div id="loginScreen" class="min-h-screen flex items-center justify-center p-6">
-        <div class="card p-8 max-w-md w-full">
-            <div class="text-center mb-6">
-                <h1 class="text-4xl font-bold text-white">🔥 <span class="gradient-text">FireZap</span></h1>
-                <p class="text-gray-400 text-sm mt-2">Digite o código de acesso para entrar</p>
+        <div class="panel p-8 max-w-md w-full">
+            <div class="mb-8">
+                <div class="brand-mark h-11 w-11 rounded-lg mb-5 flex items-center justify-center font-black text-slate-950">FZ</div>
+                <h1 class="text-3xl font-extrabold tracking-tight">FireZap</h1>
+                <p class="text-slate-400 text-sm mt-2">Acesse seu painel de aquecimento e conecte os chips.</p>
             </div>
-
             <div class="space-y-4">
-                <div>
-                    <label class="text-gray-400 text-sm block mb-1">Nome de usuário</label>
-                    <input type="text" id="loginUser" placeholder="Ex: João"
-                           class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-orange-500 outline-none" />
-                </div>
-
-                <div>
-                    <label class="text-gray-400 text-sm block mb-1">Código secreto</label>
-                    <input type="password" id="loginCode" placeholder="••••"
-                           class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-3 text-white focus:border-orange-500 outline-none"
-                           onkeydown="if(event.key==='Enter') doLogin()" />
-                </div>
-
-                <button onclick="doLogin()" class="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white py-3 rounded-lg font-bold transition">
-                    🔓 Entrar
-                </button>
-
-                <p id="loginError" class="text-red-400 text-sm text-center hidden"></p>
+                <label class="block">
+                    <span class="text-slate-300 text-sm font-semibold block mb-2">Nome de usuario</span>
+                    <input type="text" id="loginUser" placeholder="Ex: Joao" class="field w-full px-4 py-3" />
+                </label>
+                <label class="block">
+                    <span class="text-slate-300 text-sm font-semibold block mb-2">Codigo secreto</span>
+                    <input type="password" id="loginCode" placeholder="Digite seu codigo" class="field w-full px-4 py-3" onkeydown="if(event.key==='Enter') doLogin()" />
+                </label>
+                <button onclick="doLogin()" class="btn btn-primary w-full py-3">Entrar</button>
+                <p id="loginError" class="text-red-300 text-sm hidden"></p>
             </div>
         </div>
     </div>
 
-    <!-- ===== TELA PRINCIPAL ===== -->
-    <div id="mainScreen" class="hidden min-h-screen p-6">
+    <div id="mainScreen" class="hidden min-h-screen p-5 md:p-8">
         <div class="max-w-6xl mx-auto">
-
-            <!-- Header -->
-            <header class="flex justify-between items-center mb-8">
-                <div>
-                    <h1 class="text-3xl font-bold text-white">🔥 <span class="gradient-text">FireZap</span></h1>
-                    <p class="text-gray-400 text-sm mt-1">Olá, <span id="userNameDisplay" class="text-orange-400 font-semibold"></span>! Conecte 2 chips e ative a conversa.</p>
-                </div>
+            <header class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-7">
                 <div class="flex items-center gap-4">
-                    <span id="conversationStatus" class="text-gray-400 text-sm">⏸️ Pausado</span>
-                    <span class="text-gray-600 text-sm" id="timeDisplay"></span>
-                    <button onclick="logout()" class="text-gray-400 hover:text-red-400 text-sm transition">Sair</button>
+                    <div class="brand-mark h-12 w-12 rounded-lg flex items-center justify-center font-black text-slate-950">FZ</div>
+                    <div>
+                        <h1 class="text-2xl font-extrabold tracking-tight">FireZap</h1>
+                        <p class="text-slate-400 text-sm">Sessao de <span id="userNameDisplay" class="text-teal-300 font-semibold"></span></p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-3 text-sm">
+                    <button onclick="goToVideos()" class="btn btn-muted px-3 py-2">Biblioteca</button>
+                    <span id="conversationStatus" class="soft-panel px-3 py-2 text-slate-300">Pausado</span>
+                    <span class="text-slate-500" id="timeDisplay"></span>
+                    <button onclick="logout()" class="btn btn-muted px-3 py-2">Sair</button>
                 </div>
             </header>
 
-            <!-- Grid principal -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-                <!-- Chip 1 -->
-                <div class="card p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <div class="flex items-center gap-3">
-                            <span class="status-dot status-disconnected" id="statusDot1"></span>
-                            <h2 class="text-white font-bold">Chip 1</h2>
+            <section class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="panel p-5">
+                    <div class="flex justify-between items-start mb-5">
+                        <div>
+                            <div class="flex items-center gap-3"><span class="status-dot status-disconnected" id="statusDot1"></span><h2 class="font-bold">Chip 1</h2></div>
+                            <p id="phoneNumber1" class="text-slate-400 text-sm mt-2">Nao conectado</p>
                         </div>
-                        <span id="phoneNumber1" class="text-gray-400 text-sm">Não conectado</span>
+                        <span id="chipState1" class="text-xs uppercase tracking-wide text-slate-500">offline</span>
                     </div>
-
-                    <div id="qrContainer1" class="hidden bg-white rounded-lg p-2 mb-4 flex flex-col justify-center items-center">
-                        <img id="qr1" src="" alt="QR Code" class="w-48 h-48" />
-                        <p class="text-xs text-gray-500 text-center mt-2">Escaneie com o WhatsApp</p>
+                    <div id="qrContainer1" class="hidden bg-white rounded-lg p-4 mb-5 flex flex-col justify-center items-center">
+                        <img id="qr1" src="" alt="QR Code" class="w-52 h-52" />
+                        <p class="text-xs text-slate-500 text-center mt-3">Escaneie no WhatsApp do Chip 1</p>
                     </div>
-
+                    <div id="chipError1" class="hidden mb-4 rounded-lg border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200"></div>
                     <div class="flex gap-2">
-                        <button onclick="connectChip(1)" class="flex-1 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-                            📱 Conectar
-                        </button>
-                        <button onclick="disconnectChip(1)" class="bg-red-600/20 hover:bg-red-600/30 text-red-400 px-4 py-2 rounded-lg text-sm font-semibold transition">
-                            Desconectar
-                        </button>
+                        <button onclick="connectChip(1)" class="btn btn-primary flex-1 px-4 py-2.5">Conectar</button>
+                        <button onclick="disconnectChip(1)" class="btn btn-danger px-4 py-2.5">Desconectar</button>
                     </div>
                 </div>
 
-                <!-- Chip 2 -->
-                <div class="card p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <div class="flex items-center gap-3">
-                            <span class="status-dot status-disconnected" id="statusDot2"></span>
-                            <h2 class="text-white font-bold">Chip 2</h2>
+                <div class="panel p-5">
+                    <div class="flex justify-between items-start mb-5">
+                        <div>
+                            <div class="flex items-center gap-3"><span class="status-dot status-disconnected" id="statusDot2"></span><h2 class="font-bold">Chip 2</h2></div>
+                            <p id="phoneNumber2" class="text-slate-400 text-sm mt-2">Nao conectado</p>
                         </div>
-                        <span id="phoneNumber2" class="text-gray-400 text-sm">Não conectado</span>
+                        <span id="chipState2" class="text-xs uppercase tracking-wide text-slate-500">offline</span>
                     </div>
-
-                    <div id="qrContainer2" class="hidden bg-white rounded-lg p-2 mb-4 flex flex-col justify-center items-center">
-                        <img id="qr2" src="" alt="QR Code" class="w-48 h-48" />
-                        <p class="text-xs text-gray-500 text-center mt-2">Escaneie com o WhatsApp</p>
+                    <div id="qrContainer2" class="hidden bg-white rounded-lg p-4 mb-5 flex flex-col justify-center items-center">
+                        <img id="qr2" src="" alt="QR Code" class="w-52 h-52" />
+                        <p class="text-xs text-slate-500 text-center mt-3">Escaneie no WhatsApp do Chip 2</p>
                     </div>
-
+                    <div id="chipError2" class="hidden mb-4 rounded-lg border border-red-400/20 bg-red-500/10 p-3 text-sm text-red-200"></div>
                     <div class="flex gap-2">
-                        <button onclick="connectChip(2)" class="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-                            📱 Conectar
-                        </button>
-                        <button onclick="disconnectChip(2)" class="bg-red-600/20 hover:bg-red-600/30 text-red-400 px-4 py-2 rounded-lg text-sm font-semibold transition">
-                            Desconectar
-                        </button>
+                        <button onclick="connectChip(2)" class="btn btn-primary flex-1 px-4 py-2.5">Conectar</button>
+                        <button onclick="disconnectChip(2)" class="btn btn-danger px-4 py-2.5">Desconectar</button>
                     </div>
                 </div>
+            </section>
 
-            </div>
-
-            <!-- Controles -->
-            <div class="card p-6 mt-6">
-                <div class="flex flex-wrap gap-4 items-center">
-                    <div class="flex-1 min-w-[200px]">
-                        <label class="text-gray-400 text-sm block mb-1">Texto base</label>
-                        <input type="text" id="baseText" value="Olá, tudo bem? Como você está?"
-                               class="w-full bg-gray-800/50 border border-gray-700 rounded-lg px-4 py-2 text-white text-sm focus:border-orange-500 outline-none" />
-                    </div>
-                    <div class="flex gap-2">
-                        <button id="btnStart" onclick="startConversation()" class="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white px-6 py-2 rounded-lg font-bold transition opacity-50 cursor-not-allowed" disabled>
-                            ▶️ Iniciar
-                        </button>
-                        <button onclick="pauseConversation()" class="bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400 px-6 py-2 rounded-lg font-bold transition">
-                            ⏸️ Pausar
-                        </button>
-                        <button onclick="stopConversation()" class="bg-red-600/20 hover:bg-red-600/30 text-red-400 px-6 py-2 rounded-lg font-bold transition">
-                            ⏹️ Parar
-                        </button>
+            <section class="panel p-5 mt-5">
+                <div class="flex flex-col lg:flex-row gap-4 lg:items-end">
+                    <label class="flex-1">
+                        <span class="text-slate-300 text-sm font-semibold block mb-2">Texto base</span>
+                        <input type="text" id="baseText" value="Ola, tudo bem? Como voce esta?" class="field w-full px-4 py-3 text-sm" />
+                    </label>
+                    <div class="flex flex-wrap gap-2">
+                        <button id="btnStart" onclick="startConversation()" class="btn btn-primary px-5 py-3 opacity-50 cursor-not-allowed" disabled>Iniciar</button>
+                        <button onclick="pauseConversation()" class="btn btn-muted px-5 py-3">Pausar</button>
+                        <button onclick="stopConversation()" class="btn btn-danger px-5 py-3">Parar</button>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- Log -->
-            <div class="card p-6 mt-6">
+            <section class="panel p-5 mt-5">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-white font-bold">📋 Log de Conversa</h3>
-                    <button onclick="clearLogsUI()" class="text-gray-400 text-sm hover:text-white transition">Limpar</button>
+                    <h3 class="font-bold">Log de conversa</h3>
+                    <button onclick="clearLogsUI()" class="btn btn-muted px-3 py-2 text-sm">Limpar</button>
                 </div>
-                <div id="logContainer" class="log-container space-y-1 text-sm">
-                    <div class="text-gray-500 text-center py-8">Aguardando mensagens...</div>
+                <div id="logContainer" class="log-container space-y-2 text-sm">
+                    <div class="text-slate-500 text-center py-8">Aguardando mensagens...</div>
                 </div>
-            </div>
-
+            </section>
         </div>
     </div>
 
     <script>
-        // ===== Estado global =====
         let currentUser = null;
         let accessCode = null;
         let roomId = null;
@@ -177,7 +156,6 @@
         let logInterval = null;
         let chipStatus = { 1: 'disconnected', 2: 'disconnected' };
 
-        // ===== Verifica login salvo =====
         window.addEventListener('load', () => {
             const savedUser = localStorage.getItem('firezap_user');
             const savedCode = localStorage.getItem('firezap_code');
@@ -189,43 +167,24 @@
             }
         });
 
-        // ===== LOGIN =====
         async function doLogin() {
             const user = document.getElementById('loginUser').value.trim();
             const code = document.getElementById('loginCode').value.trim();
             const errorEl = document.getElementById('loginError');
-
-            if (!user || !code) {
-                errorEl.textContent = 'Preencha todos os campos';
-                errorEl.classList.remove('hidden');
-                return;
-            }
-
+            errorEl.classList.add('hidden');
+            if (!user || !code) return showInlineError(errorEl, 'Preencha todos os campos.');
             try {
-                const response = await fetch('/api/auth', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code })
-                });
-
+                const response = await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) });
                 const data = await response.json();
-
-                if (data.success) {
-                    currentUser = user;
-                    accessCode = code;
-                    roomId = 'room_' + user.toLowerCase().replace(/[^a-z0-9]/g, '_');
-
-                    localStorage.setItem('firezap_user', user);
-                    localStorage.setItem('firezap_code', code);
-
-                    showMainScreen();
-                } else {
-                    errorEl.textContent = data.error || 'Código inválido';
-                    errorEl.classList.remove('hidden');
-                }
+                if (!data.success) return showInlineError(errorEl, data.error || 'Codigo invalido.');
+                currentUser = user;
+                accessCode = code;
+                roomId = 'room_' + user.toLowerCase().replace(/[^a-z0-9]/g, '_');
+                localStorage.setItem('firezap_user', user);
+                localStorage.setItem('firezap_code', code);
+                showMainScreen();
             } catch (error) {
-                errorEl.textContent = 'Erro ao conectar: ' + error.message;
-                errorEl.classList.remove('hidden');
+                showInlineError(errorEl, 'Erro ao conectar: ' + error.message);
             }
         }
 
@@ -234,22 +193,18 @@
             document.getElementById('mainScreen').classList.remove('hidden');
             document.getElementById('userNameDisplay').textContent = currentUser;
             updateStartButton();
-
-            setTimeout(() => {
-                startPolling(1);
-                startPolling(2);
-                startLogPolling();
-            }, 500);
+            setTimeout(() => { startPolling(1, false); startPolling(2, false); startLogPolling(); }, 500);
         }
 
         function logout() {
-            if (!confirm('Sair? Seus chips continuarão conectados no servidor.')) return;
+            if (!confirm('Sair? Seus chips continuarao conectados no servidor.')) return;
             localStorage.removeItem('firezap_user');
             localStorage.removeItem('firezap_code');
             location.reload();
         }
 
-        // ===== Helper: fetch com auth + room =====
+        function goToVideos() { window.location.href = 'videos.html'; }
+
         async function apiFetch(url, options = {}) {
             const separator = url.includes('?') ? '&' : '?';
             const fullUrl = `${url}${separator}room=${encodeURIComponent(roomId)}`;
@@ -257,86 +212,89 @@
             return fetch(fullUrl, { ...options, headers });
         }
 
-        // ===== Conectar chip =====
         async function connectChip(chipId) {
-            if (chipStatus[chipId] === 'connected' || chipStatus[chipId] === 'connecting') {
-                alert(`Chip ${chipId} já está conectado ou conectando!`);
-                return;
-            }
-
+            if (chipStatus[chipId] === 'connected' || chipStatus[chipId] === 'connecting') return notify(`Chip ${chipId} ja esta conectado ou conectando.`, 'warning');
+            clearChipError(chipId);
+            chipStatus[chipId] = 'connecting';
+            updateStatus(chipId, 'connecting');
             try {
                 const response = await apiFetch(`/api/connect/${chipId}`, { method: 'POST' });
                 const data = await response.json();
-
                 if (data.success) {
-                    addLogItem('system', `📱 Chip ${chipId} conectando... Aguarde o QR Code`);
-                    startPolling(chipId);
+                    addLogItem('system', `Chip ${chipId} conectando. Aguarde o QR Code.`);
+                    startPolling(chipId, true);
                 } else {
-                    alert(`Erro: ${data.error}`);
+                    showChipError(chipId, data.error || 'Nao foi possivel iniciar a conexao.');
+                    notify(data.error || 'Erro ao conectar.', 'error');
+                    chipStatus[chipId] = 'disconnected';
+                    updateStatus(chipId, 'disconnected');
                 }
             } catch (error) {
-                alert('Erro ao conectar: ' + error.message);
+                showChipError(chipId, error.message);
+                notify('Erro ao conectar: ' + error.message, 'error');
+                chipStatus[chipId] = 'disconnected';
+                updateStatus(chipId, 'disconnected');
             }
         }
 
-        // ===== Desconectar chip =====
         async function disconnectChip(chipId) {
             if (!confirm(`Desconectar Chip ${chipId}?`)) return;
             try {
                 await apiFetch(`/api/disconnect/${chipId}`, { method: 'POST' });
                 chipStatus[chipId] = 'disconnected';
                 updateStatus(chipId, 'disconnected');
-                document.getElementById(`phoneNumber${chipId}`).textContent = 'Não conectado';
+                clearChipError(chipId);
+                document.getElementById(`phoneNumber${chipId}`).textContent = 'Nao conectado';
                 document.getElementById(`qrContainer${chipId}`).classList.add('hidden');
                 if (pollIntervals[chipId]) { clearInterval(pollIntervals[chipId]); pollIntervals[chipId] = null; }
-                addLogItem('system', `Chip ${chipId} desconectado`);
+                addLogItem('system', `Chip ${chipId} desconectado.`);
                 updateStartButton();
-            } catch (error) {
-                alert('Erro ao desconectar: ' + error.message);
-            }
+            } catch (error) { notify('Erro ao desconectar: ' + error.message, 'error'); }
         }
 
-        // ===== Polling por chip =====
-        function startPolling(chipId) {
+        function startPolling(chipId, forceConnecting = true) {
             if (pollIntervals[chipId]) clearInterval(pollIntervals[chipId]);
-            chipStatus[chipId] = 'connecting';
-            updateStatus(chipId, 'connecting');
-
+            if (forceConnecting) { chipStatus[chipId] = 'connecting'; updateStatus(chipId, 'connecting'); }
             pollIntervals[chipId] = setInterval(async () => {
                 try {
                     const response = await apiFetch(`/api/status/${chipId}`);
                     const data = await response.json();
-
                     if (data.qr) {
                         document.getElementById(`qr${chipId}`).src = data.qr;
                         document.getElementById(`qrContainer${chipId}`).classList.remove('hidden');
+                        clearChipError(chipId);
                     }
-
+                    if (data.error) showChipError(chipId, data.error);
                     if (data.status === 'connected') {
                         document.getElementById(`qrContainer${chipId}`).classList.add('hidden');
                         document.getElementById(`phoneNumber${chipId}`).textContent = data.phoneNumber ? `+${data.phoneNumber}` : 'Conectado';
                         chipStatus[chipId] = 'connected';
                         updateStatus(chipId, 'connected');
-                        updateStartButton();
-                    } else if (data.status === 'awaiting_scan') {
+                        clearChipError(chipId);
+                    } else if (data.status === 'awaiting_scan' || data.status === 'connecting') {
                         chipStatus[chipId] = 'connecting';
                         updateStatus(chipId, 'connecting');
+                    } else if (data.status === 'error') {
+                        chipStatus[chipId] = 'error';
+                        updateStatus(chipId, 'error');
                     } else if (data.status === 'disconnected') {
                         chipStatus[chipId] = 'disconnected';
                         updateStatus(chipId, 'disconnected');
-                        updateStartButton();
                     }
-                } catch (error) {
-                    console.error('Erro status:', error);
-                }
+                    updateStartButton();
+                } catch (error) { console.error('Erro status:', error); }
             }, 2000);
         }
 
         function updateStatus(chipId, status) {
             const dot = document.getElementById(`statusDot${chipId}`);
+            const label = document.getElementById(`chipState${chipId}`);
             dot.className = 'status-dot';
+            const labels = { connected: 'online', connecting: 'conectando', error: 'erro', disconnected: 'offline' };
+            label.textContent = labels[status] || 'offline';
             if (status === 'connected') dot.classList.add('status-connected');
             else if (status === 'connecting') dot.classList.add('status-connecting');
+            else if (status === 'error') dot.classList.add('status-error');
             else dot.classList.add('status-disconnected');
         }
 
@@ -348,79 +306,59 @@
             btn.classList.toggle('cursor-not-allowed', !ready);
         }
 
-        // ===== Conversa =====
         async function startConversation() {
-            if (chipStatus[1] !== 'connected' || chipStatus[2] !== 'connected') {
-                alert('Conecte os dois chips primeiro!');
-                return;
-            }
+            if (chipStatus[1] !== 'connected' || chipStatus[2] !== 'connected') return notify('Conecte os dois chips primeiro.', 'warning');
             const text = document.getElementById('baseText').value;
             try {
                 const response = await apiFetch('/api/conversation/start', { method: 'POST', body: JSON.stringify({ text }) });
                 const data = await response.json();
                 if (data.success || data.message) {
-                    document.getElementById('conversationStatus').textContent = '▶️ Ativa';
-                    document.getElementById('conversationStatus').className = 'text-green-400 text-sm';
-                    addLogItem('system', '🚀 Conversa iniciada! Ping-pong rodando...');
-                } else {
-                    alert(`Erro: ${data.error}`);
-                }
-            } catch (error) {
-                alert('Erro: ' + error.message);
-            }
+                    document.getElementById('conversationStatus').textContent = 'Ativa';
+                    document.getElementById('conversationStatus').className = 'soft-panel px-3 py-2 text-emerald-300';
+                    addLogItem('system', 'Conversa iniciada.');
+                } else notify(data.error || 'Erro ao iniciar.', 'error');
+            } catch (error) { notify('Erro: ' + error.message, 'error'); }
         }
 
         async function pauseConversation() {
             try {
                 await apiFetch('/api/conversation/pause', { method: 'POST' });
                 const s = document.getElementById('conversationStatus');
-                s.textContent = '⏸️ Pausado';
-                s.className = 'text-yellow-400 text-sm';
-                addLogItem('system', '⏸️ Conversa pausada');
-            } catch (error) { alert('Erro: ' + error.message); }
+                s.textContent = 'Pausado';
+                s.className = 'soft-panel px-3 py-2 text-amber-300';
+                addLogItem('system', 'Conversa pausada.');
+            } catch (error) { notify('Erro: ' + error.message, 'error'); }
         }
 
         async function stopConversation() {
             try {
                 await apiFetch('/api/conversation/stop', { method: 'POST' });
                 const s = document.getElementById('conversationStatus');
-                s.textContent = '⏹️ Parado';
-                s.className = 'text-gray-400 text-sm';
-                document.getElementById('logContainer').innerHTML = '<div class="text-gray-500 text-center py-8">Conversa resetada</div>';
-            } catch (error) { alert('Erro: ' + error.message); }
+                s.textContent = 'Parado';
+                s.className = 'soft-panel px-3 py-2 text-slate-300';
+                document.getElementById('logContainer').innerHTML = '<div class="text-slate-500 text-center py-8">Conversa resetada</div>';
+            } catch (error) { notify('Erro: ' + error.message, 'error'); }
         }
 
-        // ===== Log polling =====
         function startLogPolling() {
             if (logInterval) clearInterval(logInterval);
             logInterval = setInterval(async () => {
                 try {
                     const response = await apiFetch('/api/logs');
                     const logs = await response.json();
-
                     const container = document.getElementById('logContainer');
                     if (logs.length === 0) {
-                        if (!container.querySelector('.text-center')) {
-                            container.innerHTML = '<div class="text-gray-500 text-center py-8">Aguardando mensagens...</div>';
-                        }
+                        if (!container.querySelector('.text-center')) container.innerHTML = '<div class="text-slate-500 text-center py-8">Aguardando mensagens...</div>';
                         return;
                     }
-
                     container.innerHTML = logs.map(log => {
                         const chip = log.chip === '1' ? 'Chip 1' : 'Chip 2';
                         const cls = log.chip === '1' ? 'message-bubble-1' : 'message-bubble-2';
                         const time = new Date(log.timestamp).toLocaleTimeString();
-                        return `<div class="message-bubble ${cls}">
-                            <span class="text-gray-400 text-xs">${time}</span>
-                            <span class="text-orange-400 font-semibold">[${chip}]</span>
-                            <span class="text-white">${escapeHtml(log.text)}</span>
-                        </div>`;
+                        return `<div class="message-bubble ${cls}"><span class="text-slate-500 text-xs">${time}</span> <span class="text-teal-300 font-semibold">[${chip}]</span> <span class="text-slate-100">${escapeHtml(log.text)}</span></div>`;
                     }).join('');
-
                     container.scrollTop = container.scrollHeight;
-                } catch (error) {
-                    console.error('Erro logs:', error);
-                }
+                } catch (error) { console.error('Erro logs:', error); }
             }, 1500);
         }
 
@@ -429,28 +367,31 @@
             if (container.querySelector('.text-center')) container.innerHTML = '';
             const time = new Date().toLocaleTimeString();
             const div = document.createElement('div');
-            div.className = 'message-bubble border-l-4 border-green-500';
-            div.innerHTML = `<span class="text-gray-400 text-xs">${time}</span> <span class="text-green-400">${escapeHtml(text)}</span>`;
+            div.className = 'message-bubble border-l-4 border-emerald-400';
+            div.innerHTML = `<span class="text-slate-500 text-xs">${time}</span> <span class="text-emerald-300">${escapeHtml(text)}</span>`;
             container.appendChild(div);
             container.scrollTop = container.scrollHeight;
         }
 
-        function clearLogsUI() {
-            document.getElementById('logContainer').innerHTML = '<div class="text-gray-500 text-center py-8">Logs limpos</div>';
+        function clearLogsUI() { document.getElementById('logContainer').innerHTML = '<div class="text-slate-500 text-center py-8">Logs limpos</div>'; }
+        function escapeHtml(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+        function showInlineError(el, text) { el.textContent = text; el.classList.remove('hidden'); }
+        function showChipError(chipId, text) { const el = document.getElementById(`chipError${chipId}`); el.textContent = friendlyBrowserError(text); el.classList.remove('hidden'); }
+        function clearChipError(chipId) { const el = document.getElementById(`chipError${chipId}`); el.textContent = ''; el.classList.add('hidden'); }
+        function friendlyBrowserError(text) {
+            if ((text || '').includes('Browser was not found') || (text || '').includes('executablePath')) return 'Navegador do servidor nao encontrado. Reimplante o projeto para aplicar a deteccao automatica do Chromium.';
+            return text || 'Erro desconhecido ao conectar.';
         }
-
-        function escapeHtml(str) {
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
+        function notify(text, type = 'info') {
+            const toast = document.getElementById('toast');
+            const colors = { error: 'border-red-400/30 text-red-100', warning: 'border-amber-400/30 text-amber-100', info: 'border-slate-400/20 text-slate-100' };
+            toast.className = `fixed right-5 top-5 z-50 max-w-md panel px-4 py-3 text-sm ${colors[type] || colors.info}`;
+            toast.textContent = text;
+            toast.classList.remove('hidden');
+            clearTimeout(window.__toastTimer);
+            window.__toastTimer = setTimeout(() => toast.classList.add('hidden'), 4500);
         }
-
-        // Relógio
-        setInterval(() => {
-            const el = document.getElementById('timeDisplay');
-            if (el) el.textContent = new Date().toLocaleTimeString();
-        }, 1000);
+        setInterval(() => { const el = document.getElementById('timeDisplay'); if (el) el.textContent = new Date().toLocaleTimeString(); }, 1000);
     </script>
-
 </body>
 </html>
