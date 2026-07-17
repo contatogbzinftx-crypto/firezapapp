@@ -1,5 +1,7 @@
-﻿[variables]
+[variables]
 PUPPETEER_SKIP_DOWNLOAD = "true"
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
+PUPPETEER_CACHE_DIR = "/tmp/puppeteer-cache"
 
 [phases.setup]
 nixPkgs = [
@@ -52,4 +54,4 @@ aptPkgs = [
 cmds = ["npm install"]
 
 [start]
-cmd = "npm start"
+cmd = "CHROME_PATH=$(which chromium || which chromium-browser || which google-chrome || true) PUPPETEER_EXECUTABLE_PATH=$(which chromium || which chromium-browser || which google-chrome || true) npm start"

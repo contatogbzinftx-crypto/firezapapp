@@ -1,3 +1,6 @@
+process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
+process.env.PUPPETEER_CACHE_DIR = '/tmp/puppeteer-cache';
+
 const express = require('express');
 const cors = require('cors');
 const { Client, LocalAuth } = require('whatsapp-web.js');
@@ -51,24 +54,40 @@ function findExecutableOnPath(names) {
   return null;
 }
 
-const chromeCandidates = [
-  process.env.CHROME_PATH,
-  process.env.PUPPETEER_EXECUTABLE_PATH,
+function isUsableBrowserPath(candidate) {
+  return Boolean(candidate) && fs.existsSync(candidate) && !candidate.includes('/.cache/puppeteer/');
+}
+
+const systemChromeCandidates = [
   findExecutableOnPath(['chromium', 'chromium-browser', 'google-chrome-stable', 'google-chrome', 'chrome']),
+  process.env.CHROME_PATH,
   isWindows ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : null,
   isWindows ? 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' : null,
   '/usr/bin/chromium',
   '/usr/bin/chromium-browser',
   '/usr/bin/google-chrome-stable',
   '/usr/bin/google-chrome',
+  '/app/.nix-profile/bin/chromium',
+  '/root/.nix-profile/bin/chromium',
+  '/nix/var/nix/profiles/default/bin/chromium',
   '/app/.apt/usr/bin/google-chrome'
 ].filter(Boolean);
 
-const CHROME_PATH = chromeCandidates.find(candidate => fs.existsSync(candidate));
+const SYSTEM_CHROME_PATH = systemChromeCandidates.find(isUsableBrowserPath);
+const CHROME_PATH = SYSTEM_CHROME_PATH || (isWindows ? process.env.PUPPETEER_EXECUTABLE_PATH : null);
+
+if (SYSTEM_CHROME_PATH) {
+  process.env.PUPPETEER_EXECUTABLE_PATH = SYSTEM_CHROME_PATH;
+}
 
 function buildPuppeteerConfig() {
-  const config = {
+  if (!CHROME_PATH || (!isWindows && !SYSTEM_CHROME_PATH)) {
+    throw new Error('Chromium do servidor nao encontrado. No Railway, confirme que o nixpacks.toml foi commitado e redeployado com o pacote chromium.');
+  }
+
+  return {
     headless: 'new',
+    executablePath: CHROME_PATH,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -78,15 +97,12 @@ function buildPuppeteerConfig() {
       '--no-first-run',
       '--no-default-browser-check',
       '--disable-software-rasterizer',
-      '--disable-notifications'
+      '--disable-notifications',
+      '--disable-background-networking',
+      '--disable-features=site-per-process',
+      '--single-process'
     ]
   };
-
-  if (CHROME_PATH) {
-    config.executablePath = CHROME_PATH;
-  }
-
-  return config;
 }
 
 // Mensagens com tempo variado (rápidas e demoradas)
