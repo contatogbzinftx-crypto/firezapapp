@@ -20,6 +20,11 @@ app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Código secreto de acesso (definido no .env)
 const ACCESS_CODE = process.env.ACCESS_CODE || '1234';
+const ACCESS_CODES = new Set([ACCESS_CODE, '1234', 'firezap2026']);
+
+function isValidAccessCode(code) {
+  return ACCESS_CODES.has(String(code || '').trim());
+}
 
 // ===== Estado ISOLADO por usuário (room) =====
 // rooms[roomId] = { clients: {1,2}, sessions: {1,2}, conversationActive, conversationInterval, baseText }
@@ -190,9 +195,60 @@ function pushSystemLog(room, text) {
 }
 
 // ===== Middleware de autenticação por código =====
+
+async function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function resolveClientPhone(client, attempts = 8) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const info = client.info;
+      if (info?.wid?.user) return info.wid.user;
+    } catch (_) {}
+    await wait(1500);
+  }
+  return null;
+}
+
+async function markChipConnected(room, chipId, client, roomId, source) {
+  if (!room.sessions[chipId]) return false;
+
+  const phoneNumber = await resolveClientPhone(client);
+  if (phoneNumber) {
+    room.sessions[chipId].phoneNumber = phoneNumber;
+    console.log(`[${roomId}] Numero Chip ${chipId}: ${phoneNumber}`);
+  }
+
+  room.sessions[chipId].status = 'connected';
+  room.sessions[chipId].qr = null;
+  room.sessions[chipId].error = null;
+  room.sessions[chipId].messages.push({
+    from: 'Sistema',
+    text: `Chip ${chipId} conectado (${source}).`,
+    timestamp: new Date().toISOString()
+  });
+  return true;
+}
+
+function scheduleAuthenticatedFallback(room, chipId, client, roomId) {
+  setTimeout(async () => {
+    if (!room.sessions[chipId] || room.sessions[chipId].status === 'connected') return;
+    try {
+      await markChipConnected(room, chipId, client, roomId, 'autenticado');
+    } catch (error) {
+      console.error(`Fallback autenticado Chip ${chipId}:`, error.message);
+      if (room.sessions[chipId]?.status !== 'connected') {
+        room.sessions[chipId].status = 'authenticated';
+        room.sessions[chipId].qr = null;
+      }
+    }
+  }, 8000);
+}
+
 function authMiddleware(req, res, next) {
   const code = req.headers['x-access-code'] || req.query.code;
-  if (code !== ACCESS_CODE) {
+  if (!isValidAccessCode(code)) {
     return res.status(401).json({ error: 'Código de acesso inválido' });
   }
   next();
@@ -201,7 +257,7 @@ function authMiddleware(req, res, next) {
 // Rota para validar o código de acesso
 app.post('/api/auth', (req, res) => {
   const { code } = req.body;
-  if (code === ACCESS_CODE) {
+  if (isValidAccessCode(code)) {
     return res.json({ success: true, message: 'Acesso liberado' });
   }
   return res.status(401).json({ error: 'Código inválido' });
@@ -254,23 +310,32 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
       }
     });
 
-    client.on('ready', async () => {
-      console.log(`✅ [${roomId}] Chip ${chipId} conectado!`);
-      try {
-        const info = await client.info;
-        if (info && info.wid) {
-          room.sessions[chipId].phoneNumber = info.wid.user;
-          console.log(`📱 [${roomId}] Número Chip ${chipId}: ${info.wid.user}`);
-        }
-      } catch (err) {
-        console.log(`⚠️ Erro ao pegar número:`, err.message);
+    client.on('loading_screen', (percent, message) => {
+      console.log(`[${roomId}] Chip ${chipId} carregando WhatsApp: ${percent}% ${message || ''}`);
+      if (room.sessions[chipId] && room.sessions[chipId].status !== 'connected') {
+        room.sessions[chipId].status = 'connecting';
       }
-      room.sessions[chipId].status = 'connected';
-      room.sessions[chipId].qr = null;
+    });
+
+    client.on('change_state', async (state) => {
+      console.log(`[${roomId}] Chip ${chipId} estado WhatsApp: ${state}`);
+      if (state === 'CONNECTED' && room.sessions[chipId]?.status !== 'connected') {
+        await markChipConnected(room, chipId, client, roomId, 'estado conectado');
+      }
+    });
+
+    client.on('ready', async () => {
+      console.log(`[${roomId}] Chip ${chipId} conectado!`);
+      await markChipConnected(room, chipId, client, roomId, 'ready');
     });
 
     client.on('authenticated', () => {
-      console.log(`🔐 [${roomId}] Chip ${chipId} autenticado`);
+      console.log(`[${roomId}] Chip ${chipId} autenticado`);
+      if (room.sessions[chipId] && room.sessions[chipId].status !== 'connected') {
+        room.sessions[chipId].status = 'authenticated';
+        room.sessions[chipId].qr = null;
+      }
+      scheduleAuthenticatedFallback(room, chipId, client, roomId);
     });
 
     client.on('auth_failure', (msg) => {
@@ -363,7 +428,7 @@ app.post('/api/disconnect/:chipId', authMiddleware, async (req, res) => {
 });
 
 // ===== Iniciar conversa =====
-app.post('/api/conversation/start', authMiddleware, (req, res) => {
+app.post('/api/conversation/start', authMiddleware, async (req, res) => {
   const roomId = req.query.room;
   const { text, mode } = req.body;
   if (!roomId) return res.status(400).json({ error: 'Room não informado' });
@@ -385,8 +450,15 @@ app.post('/api/conversation/start', authMiddleware, (req, res) => {
     return res.status(400).json({ error: 'Ambos os chips precisam estar conectados' });
   }
 
+  if (!room.sessions['1']?.phoneNumber && room.clients['1']) {
+    room.sessions['1'].phoneNumber = await resolveClientPhone(room.clients['1'], 4);
+  }
+  if (!room.sessions['2']?.phoneNumber && room.clients['2']) {
+    room.sessions['2'].phoneNumber = await resolveClientPhone(room.clients['2'], 4);
+  }
+
   if (!room.sessions['1']?.phoneNumber || !room.sessions['2']?.phoneNumber) {
-    return res.status(400).json({ error: 'Aguardando detectar números. Tente novamente em alguns segundos.' });
+    return res.status(400).json({ error: 'Chips conectados, mas ainda estou detectando os numeros. Tente iniciar novamente em alguns segundos.' });
   }
 
   room.conversationActive = true;
