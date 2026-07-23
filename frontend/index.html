@@ -36,6 +36,9 @@
     .log-container::-webkit-scrollbar-track { background: rgba(255,255,255,.035); }
     .log-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 999px; }
     .message { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.075); border-radius: 8px; padding: 10px 12px; }
+    .tab-btn.active { color: #080a0e; background: #f7f8fb; border-color: #f7f8fb; }
+    .tutorial-step { display: grid; grid-template-columns: 36px 1fr; gap: 14px; padding: 18px 0; border-top: 1px solid rgba(255,255,255,.075); }
+    .step-index { width: 36px; height: 36px; border-radius: 8px; display: grid; place-items: center; background: rgba(255,255,255,.08); color: #f7f8fb; font-weight: 800; }
     .hidden { display: none !important; }
   </style>
 </head>
@@ -73,6 +76,8 @@
           <p class="text-slate-400 text-sm mt-2">Sessao de <span id="userNameDisplay" class="text-slate-200 font-semibold"></span></p>
         </div>
         <div class="flex flex-wrap items-center gap-2 text-sm">
+          <button id="tabApp" onclick="showTab('app')" class="btn btn-muted tab-btn active px-3 py-2">Painel</button>
+          <button id="tabTutorial" onclick="showTab('tutorial')" class="btn btn-muted tab-btn px-3 py-2">Tutorial</button>
           <button onclick="goToVideos()" class="btn btn-muted px-3 py-2">Biblioteca</button>
           <span id="conversationStatus" class="surface-soft px-3 py-2 text-slate-300">Pausado</span>
           <span class="text-slate-500 px-2" id="timeDisplay"></span>
@@ -80,7 +85,7 @@
         </div>
       </header>
 
-      <section class="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-5">
+      <section id="appPanel" class="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-5">
         <div class="space-y-5">
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <div class="surface p-5">
@@ -141,6 +146,77 @@
           </section>
         </aside>
       </section>
+
+      <section id="tutorialPanel" class="hidden space-y-5">
+        <div class="surface p-6 md:p-8">
+          <p class="text-xs uppercase tracking-[0.28em] text-slate-500 mb-3">Guia de uso</p>
+          <h2 class="text-2xl md:text-3xl font-extrabold tracking-tight">Como usar o FireZap</h2>
+          <p class="text-slate-400 text-sm leading-6 mt-3 max-w-3xl">Siga esta ordem para conectar os chips, iniciar o aquecimento e acompanhar se as mensagens estao sendo agendadas e enviadas.</p>
+        </div>
+
+        <div class="surface p-6 md:p-8">
+          <div class="tutorial-step border-t-0 pt-0">
+            <div class="step-index">1</div>
+            <div>
+              <h3 class="font-bold mb-2">Entre com seu usuario e codigo</h3>
+              <p class="text-slate-400 text-sm leading-6">Na tela inicial, informe um nome de usuario e o codigo secreto. O nome cria uma sessao separada para os seus chips.</p>
+            </div>
+          </div>
+          <div class="tutorial-step">
+            <div class="step-index">2</div>
+            <div>
+              <h3 class="font-bold mb-2">Conecte o Chip 1</h3>
+              <p class="text-slate-400 text-sm leading-6">Clique em <strong class="text-slate-200">Conectar</strong> no card do Chip 1. Quando o QR Code aparecer, escaneie pelo WhatsApp do primeiro aparelho.</p>
+            </div>
+          </div>
+          <div class="tutorial-step">
+            <div class="step-index">3</div>
+            <div>
+              <h3 class="font-bold mb-2">Conecte o Chip 2</h3>
+              <p class="text-slate-400 text-sm leading-6">Repita o processo no card do Chip 2. A conversa so pode iniciar quando os dois cards estiverem como <strong class="text-slate-200">online</strong>.</p>
+            </div>
+          </div>
+          <div class="tutorial-step">
+            <div class="step-index">4</div>
+            <div>
+              <h3 class="font-bold mb-2">Escolha o modo de aquecimento</h3>
+              <p class="text-slate-400 text-sm leading-6"><strong class="text-slate-200">Iniciante</strong> e o mais lento para chips novos. <strong class="text-slate-200">Leve</strong> e conservador. <strong class="text-slate-200">Moderado</strong> e intermediario. <strong class="text-amber-200">Agressivo</strong> e o mais curto, recomendado somente para chips maturados.</p>
+            </div>
+          </div>
+          <div class="tutorial-step">
+            <div class="step-index">5</div>
+            <div>
+              <h3 class="font-bold mb-2">Revise o texto base</h3>
+              <p class="text-slate-400 text-sm leading-6">O texto base e a primeira mensagem enviada do Chip 1 para o Chip 2. Edite esse campo antes de iniciar, se quiser mudar a abertura da conversa.</p>
+            </div>
+          </div>
+          <div class="tutorial-step">
+            <div class="step-index">6</div>
+            <div>
+              <h3 class="font-bold mb-2">Clique em Iniciar</h3>
+              <p class="text-slate-400 text-sm leading-6">Depois de iniciar, a primeira mensagem entra na fila. Ela nao sai instantaneamente; o log mostra que a mensagem foi agendada no modo escolhido.</p>
+            </div>
+          </div>
+          <div class="tutorial-step">
+            <div class="step-index">7</div>
+            <div>
+              <h3 class="font-bold mb-2">Acompanhe pelo log</h3>
+              <p class="text-slate-400 text-sm leading-6">O log mostra eventos do sistema e as mensagens enviadas por cada chip. Se aparecer apenas agendamento, aguarde o intervalo do modo selecionado.</p>
+            </div>
+          </div>
+          <div class="tutorial-step pb-0">
+            <div class="step-index">8</div>
+            <div>
+              <h3 class="font-bold mb-2">Pause, pare ou desconecte</h3>
+              <p class="text-slate-400 text-sm leading-6">Use <strong class="text-slate-200">Pausar</strong> para interromper temporariamente, <strong class="text-slate-200">Parar</strong> para resetar a conversa e <strong class="text-slate-200">Desconectar</strong> para remover um chip da sessao.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="surface-soft p-5 text-sm text-slate-400 leading-6">
+          Dica: se os chips estiverem online, mas nenhuma mensagem aparecer ainda, confirme se o log mostra o agendamento. O aquecimento trabalha com intervalos para evitar disparos imediatos.
+        </div>
+      </section>
     </div>
   </main>
 
@@ -171,6 +247,14 @@
       }));
     }
     function getSelectedMode() { return document.querySelector('input[name="warmupMode"]:checked')?.value || 'iniciante'; }
+
+    function showTab(tab) {
+      const appActive = tab === 'app';
+      document.getElementById('appPanel').classList.toggle('hidden', !appActive);
+      document.getElementById('tutorialPanel').classList.toggle('hidden', appActive);
+      document.getElementById('tabApp').classList.toggle('active', appActive);
+      document.getElementById('tabTutorial').classList.toggle('active', !appActive);
+    }
 
     async function doLogin() {
       const user = document.getElementById('loginUser').value.trim();
@@ -239,7 +323,12 @@
     function clearLogsUI() { document.getElementById('logContainer').innerHTML = '<div class="text-slate-500 text-center py-8">Logs limpos</div>'; }
     function escapeHtml(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
     function showInlineError(el, text) { el.textContent = text; el.classList.remove('hidden'); }
-    function showChipError(chipId, text) { const el = document.getElementById(`chipError${chipId}`); el.textContent = text || 'Erro desconhecido ao conectar.'; el.classList.remove('hidden'); }
+    function showChipError(chipId, text) { const el = document.getElementById(`chipError${chipId}`); el.textContent = friendlyError(text); el.classList.remove('hidden'); }
+    function friendlyError(text) {
+      const value = text || 'Erro desconhecido ao conectar.';
+      if (value.includes('WS endpoint URL') || value.includes('Timed out after')) return 'O navegador interno demorou para iniciar. Atualize o deploy com a ultima correcao e tente conectar novamente.';
+      return value;
+    }
     function clearChipError(chipId) { const el = document.getElementById(`chipError${chipId}`); el.textContent = ''; el.classList.add('hidden'); }
     function notify(text, type = 'info') { const toast = document.getElementById('toast'); const colors = { error: 'border-red-400/30 text-red-100', warning: 'border-amber-400/30 text-amber-100', info: 'border-white/10 text-slate-100' }; toast.className = `fixed right-5 top-5 z-50 max-w-md surface px-4 py-3 text-sm ${colors[type] || colors.info}`; toast.textContent = text; toast.classList.remove('hidden'); clearTimeout(window.__toastTimer); window.__toastTimer = setTimeout(() => toast.classList.add('hidden'), 4500); }
     setInterval(() => { const el = document.getElementById('timeDisplay'); if (el) el.textContent = new Date().toLocaleTimeString(); }, 1000);

@@ -1,6 +1,7 @@
 process.env.PUPPETEER_SKIP_DOWNLOAD = 'true';
 process.env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
 process.env.PUPPETEER_CACHE_DIR = '/tmp/puppeteer-cache';
+process.env.DBUS_SESSION_BUS_ADDRESS = process.env.DBUS_SESSION_BUS_ADDRESS || '/dev/null';
 
 const express = require('express');
 const cors = require('cors');
@@ -87,8 +88,11 @@ function buildPuppeteerConfig() {
   }
 
   return {
-    headless: 'new',
+    headless: true,
     executablePath: CHROME_PATH,
+    pipe: true,
+    timeout: 120000,
+    protocolTimeout: 120000,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -100,8 +104,11 @@ function buildPuppeteerConfig() {
       '--disable-software-rasterizer',
       '--disable-notifications',
       '--disable-background-networking',
-      '--disable-features=site-per-process',
-      '--single-process'
+      '--disable-sync',
+      '--disable-default-apps',
+      '--disable-features=Translate,BackForwardCache,AcceptCHFrame,MediaRouter,OptimizationHints',
+      '--no-zygote',
+      '--window-size=1280,720'
     ]
   };
 }

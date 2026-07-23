@@ -6,7 +6,8 @@ ENV NODE_ENV=production \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
     PUPPETEER_SKIP_DOWNLOAD=true \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_CACHE_DIR=/tmp/puppeteer-cache
+    PUPPETEER_CACHE_DIR=/tmp/puppeteer-cache \
+    DBUS_SESSION_BUS_ADDRESS=/dev/null
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
