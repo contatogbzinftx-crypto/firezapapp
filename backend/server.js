@@ -96,8 +96,8 @@ function buildPuppeteerConfig() {
     headless: true,
     executablePath: CHROME_PATH,
     pipe: true,
-    timeout: 120000,
-    protocolTimeout: 120000,
+    timeout: 300000,
+    protocolTimeout: 300000,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -111,7 +111,8 @@ function buildPuppeteerConfig() {
       '--disable-background-networking',
       '--disable-sync',
       '--disable-default-apps',
-      '--disable-features=Translate,BackForwardCache,AcceptCHFrame,MediaRouter,OptimizationHints',
+      '--disable-features=Translate,BackForwardCache,AcceptCHFrame,MediaRouter,OptimizationHints,site-per-process',
+      '--disable-site-isolation-trials',
       '--no-zygote',
       '--window-size=1280,720'
     ]
@@ -194,6 +195,34 @@ function pushSystemLog(room, text) {
   });
 }
 
+function touchSession(room, chipId, status) {
+  if (!room.sessions[chipId]) return;
+  if (status) room.sessions[chipId].status = status;
+  room.sessions[chipId].updatedAt = Date.now();
+}
+
+function isStaleConnectingSession(session) {
+  if (!session) return false;
+  if (!['connecting', 'awaiting_scan', 'authenticated'].includes(session.status)) return false;
+  return Date.now() - (session.updatedAt || session.startedAt || 0) > 120000;
+}
+
+async function destroyClientQuietly(client) {
+  if (!client) return;
+  try { await client.destroy(); } catch (_) {}
+}
+
+async function resetChip(room, chipId, status = 'disconnected', error = null) {
+  await destroyClientQuietly(room.clients[chipId]);
+  delete room.clients[chipId];
+  if (room.sessions[chipId]) {
+    room.sessions[chipId].status = status;
+    room.sessions[chipId].qr = null;
+    room.sessions[chipId].error = error;
+    room.sessions[chipId].updatedAt = Date.now();
+  }
+}
+
 // ===== Middleware de autenticação por código =====
 
 async function wait(ms) {
@@ -220,7 +249,7 @@ async function markChipConnected(room, chipId, client, roomId, source) {
     console.log(`[${roomId}] Numero Chip ${chipId}: ${phoneNumber}`);
   }
 
-  room.sessions[chipId].status = 'connected';
+  touchSession(room, chipId, 'connected');
   room.sessions[chipId].qr = null;
   room.sessions[chipId].error = null;
   room.sessions[chipId].messages.push({
@@ -239,7 +268,7 @@ function scheduleAuthenticatedFallback(room, chipId, client, roomId) {
     } catch (error) {
       console.error(`Fallback autenticado Chip ${chipId}:`, error.message);
       if (room.sessions[chipId]?.status !== 'connected') {
-        room.sessions[chipId].status = 'authenticated';
+        touchSession(room, chipId, 'authenticated');
         room.sessions[chipId].qr = null;
       }
     }
@@ -277,8 +306,13 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
   const room = getRoom(roomId);
 
   try {
+    const currentSession = room.sessions[chipId];
     if (room.clients[chipId]) {
-      return res.status(400).json({ error: 'Chip já conectado' });
+      const canReset = !currentSession || ['error', 'disconnected', 'auth_failed'].includes(currentSession.status) || isStaleConnectingSession(currentSession);
+      if (!canReset) {
+        return res.status(400).json({ error: 'Chip ja esta conectado ou aguardando QR. Use desconectar se quiser reiniciar.' });
+      }
+      await resetChip(room, chipId, 'disconnected');
     }
 
     room.sessions[chipId] = {
@@ -286,7 +320,9 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
       qr: null,
       status: 'connecting',
       messages: [],
-      error: null
+      error: null,
+      startedAt: Date.now(),
+      updatedAt: Date.now()
     };
 
     const client = new Client({
@@ -304,7 +340,7 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
       try {
         const qrBase64 = await qrcode.toDataURL(qr);
         room.sessions[chipId].qr = qrBase64;
-        room.sessions[chipId].status = 'awaiting_scan';
+        touchSession(room, chipId, 'awaiting_scan');
       } catch (err) {
         console.error(`❌ Erro ao gerar QR:`, err.message);
       }
@@ -313,7 +349,7 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
     client.on('loading_screen', (percent, message) => {
       console.log(`[${roomId}] Chip ${chipId} carregando WhatsApp: ${percent}% ${message || ''}`);
       if (room.sessions[chipId] && room.sessions[chipId].status !== 'connected') {
-        room.sessions[chipId].status = 'connecting';
+        touchSession(room, chipId, 'connecting');
       }
     });
 
@@ -332,7 +368,7 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
     client.on('authenticated', () => {
       console.log(`[${roomId}] Chip ${chipId} autenticado`);
       if (room.sessions[chipId] && room.sessions[chipId].status !== 'connected') {
-        room.sessions[chipId].status = 'authenticated';
+        touchSession(room, chipId, 'authenticated');
         room.sessions[chipId].qr = null;
       }
       scheduleAuthenticatedFallback(room, chipId, client, roomId);
@@ -340,12 +376,12 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
 
     client.on('auth_failure', (msg) => {
       console.log(`❌ [${roomId}] Falha auth Chip ${chipId}:`, msg);
-      room.sessions[chipId].status = 'auth_failed';
+      touchSession(room, chipId, 'auth_failed');
     });
 
     client.on('disconnected', (reason) => {
       console.log(`⚠️ [${roomId}] Chip ${chipId} desconectado:`, reason);
-      room.sessions[chipId].status = 'disconnected';
+      touchSession(room, chipId, 'disconnected');
       delete room.clients[chipId];
     });
 
@@ -365,13 +401,12 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
     });
 
     room.clients[chipId] = client;
-    client.initialize().catch((error) => {
+    client.initialize().catch(async (error) => {
       console.error(`Erro ao inicializar Chip ${chipId}:`, error);
-      if (room.sessions[chipId]) {
-        room.sessions[chipId].status = 'error';
-        room.sessions[chipId].error = error.message;
-      }
-      delete room.clients[chipId];
+      const message = error.message && error.message.includes('Target.setDiscoverTargets')
+        ? 'Chromium demorou para iniciar o WhatsApp. Tente conectar novamente; a sessao quebrada foi limpa.'
+        : error.message;
+      await resetChip(room, chipId, 'error', message);
     });
 
     res.json({
@@ -387,7 +422,7 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
 });
 
 // ===== Status do chip =====
-app.get('/api/status/:chipId', authMiddleware, (req, res) => {
+app.get('/api/status/:chipId', authMiddleware, async (req, res) => {
   const { chipId } = req.params;
   const roomId = req.query.room;
   if (!roomId) return res.status(400).json({ error: 'Room não informado' });
@@ -395,6 +430,11 @@ app.get('/api/status/:chipId', authMiddleware, (req, res) => {
   const room = rooms[roomId];
   if (!room || !room.sessions[chipId]) {
     return res.json({ status: 'disconnected', qr: null, phoneNumber: null, messages: [] });
+  }
+
+  if (isStaleConnectingSession(room.sessions[chipId]) && !room.sessions[chipId].qr) {
+    await resetChip(room, chipId, 'error', 'Tempo de conexao expirou sem gerar QR. Clique em conectar novamente.');
+    return res.json({ status: 'error', qr: null, phoneNumber: null, error: room.sessions[chipId].error, messages: room.sessions[chipId].messages.slice(-20) });
   }
 
   res.json({
@@ -419,7 +459,9 @@ app.post('/api/disconnect/:chipId', authMiddleware, async (req, res) => {
       delete room.clients[chipId];
     }
     if (room.sessions[chipId]) {
-      room.sessions[chipId].status = 'disconnected';
+      room.sessions[chipId].qr = null;
+      room.sessions[chipId].error = null;
+      touchSession(room, chipId, 'disconnected');
     }
     res.json({ success: true, message: `Chip ${chipId} desconectado` });
   } catch (error) {

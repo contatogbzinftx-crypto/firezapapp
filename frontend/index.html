@@ -276,8 +276,9 @@
     async function apiFetch(url, options = {}) { const separator = url.includes('?') ? '&' : '?'; const fullUrl = `${url}${separator}room=${encodeURIComponent(roomId)}`; const headers = { 'Content-Type': 'application/json', 'x-access-code': accessCode, ...(options.headers || {}) }; return fetch(fullUrl, { ...options, headers }); }
 
     async function connectChip(chipId) {
-      if (chipStatus[chipId] === 'connected' || chipStatus[chipId] === 'connecting') return notify(`Chip ${chipId} ja esta conectado ou conectando.`, 'warning');
-      clearChipError(chipId); chipStatus[chipId] = 'connecting'; updateStatus(chipId, 'connecting');
+      const visibleError = !document.getElementById(`chipError${chipId}`).classList.contains('hidden');
+      if (chipStatus[chipId] === 'connected' || (chipStatus[chipId] === 'connecting' && !visibleError)) return notify(`Chip ${chipId} ja esta conectado ou conectando.`, 'warning');
+      clearChipError(chipId); document.getElementById(`qrContainer${chipId}`).classList.add('hidden'); chipStatus[chipId] = 'connecting'; updateStatus(chipId, 'connecting');
       try {
         const response = await apiFetch(`/api/connect/${chipId}`, { method: 'POST' }); const data = await response.json();
         if (data.success) { addLogItem(`Chip ${chipId} conectando. Aguarde o QR Code.`); startPolling(chipId, true); }
@@ -295,7 +296,7 @@
           if (data.error) showChipError(chipId, data.error);
           if (data.status === 'connected') { document.getElementById(`qrContainer${chipId}`).classList.add('hidden'); document.getElementById(`phoneNumber${chipId}`).textContent = data.phoneNumber ? `+${data.phoneNumber}` : 'Conectado'; chipStatus[chipId] = 'connected'; updateStatus(chipId, 'connected'); clearChipError(chipId); }
           else if (data.status === 'awaiting_scan' || data.status === 'connecting') { chipStatus[chipId] = 'connecting'; updateStatus(chipId, 'connecting'); }
-          else if (data.status === 'error') { chipStatus[chipId] = 'error'; updateStatus(chipId, 'error'); }
+          else if (data.status === 'error') { document.getElementById(`qrContainer${chipId}`).classList.add('hidden'); chipStatus[chipId] = 'error'; updateStatus(chipId, 'error'); }
           else if (data.status === 'disconnected') { chipStatus[chipId] = 'disconnected'; updateStatus(chipId, 'disconnected'); }
           updateStartButton();
         } catch (error) { console.error('Erro status:', error); }
@@ -326,7 +327,8 @@
     function showChipError(chipId, text) { const el = document.getElementById(`chipError${chipId}`); el.textContent = friendlyError(text); el.classList.remove('hidden'); }
     function friendlyError(text) {
       const value = text || 'Erro desconhecido ao conectar.';
-      if (value.includes('WS endpoint URL') || value.includes('Timed out after')) return 'O navegador interno demorou para iniciar. Atualize o deploy com a ultima correcao e tente conectar novamente.';
+      if (value.includes('Target.setDiscoverTargets') || value.includes('Tempo de conexao expirou') || value.includes('Chromium demorou')) return 'A tentativa anterior travou no navegador interno e foi limpa. Clique em Conectar novamente para gerar um novo QR.';
+      if (value.includes('WS endpoint URL') || value.includes('Timed out after')) return 'O navegador interno demorou para iniciar. Tente conectar novamente.';
       return value;
     }
     function clearChipError(chipId) { const el = document.getElementById(`chipError${chipId}`); el.textContent = ''; el.classList.add('hidden'); }
