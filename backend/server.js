@@ -240,6 +240,30 @@ function isActiveClient(room, chipId, client) {
   return room.clients[chipId] === client;
 }
 
+function normalizePhone(phoneNumber) {
+  return String(phoneNumber || '').replace(/\D/g, '').replace(/^0+/, '');
+}
+
+function otherChipId(chipId) {
+  return String(chipId) === '1' ? '2' : '1';
+}
+
+function hasSamePhone(room, chipId, phoneNumber) {
+  const otherId = otherChipId(chipId);
+  const current = normalizePhone(phoneNumber);
+  const other = normalizePhone(room.sessions[otherId]?.phoneNumber);
+  return Boolean(current && other && current === other);
+}
+
+async function rejectDuplicatedChipSession(room, chipId, roomId, phoneNumber) {
+  const otherId = otherChipId(chipId);
+  const message = `Chip ${chipId} carregou a mesma sessao/numero do Chip ${otherId} (${phoneNumber}). A sessao do Chip ${chipId} foi limpa; conecte novamente e escaneie o QR do aparelho correto.`;
+  pushSystemLog(room, message);
+  await removeLocalAuthSession(roomId, chipId);
+  await resetChip(room, chipId, 'error', message);
+  return false;
+}
+
 function getClientId(roomId, chipId) {
   return `room_${roomId}_chip_${chipId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
 }
@@ -320,6 +344,9 @@ async function markChipConnected(room, chipId, client, roomId, source) {
 
   const phoneNumber = await resolveClientPhone(client);
   if (phoneNumber) {
+    if (hasSamePhone(room, chipId, phoneNumber)) {
+      return rejectDuplicatedChipSession(room, chipId, roomId, phoneNumber);
+    }
     room.sessions[chipId].phoneNumber = phoneNumber;
     console.log(`[${roomId}] Numero Chip ${chipId}: ${phoneNumber}`);
   }
@@ -669,15 +696,19 @@ app.post('/api/conversation/start', authMiddleware, async (req, res) => {
     return res.status(400).json({ error: 'Ambos os chips precisam estar conectados' });
   }
 
-  if (!room.sessions['1']?.phoneNumber && room.clients['1']) {
-    room.sessions['1'].phoneNumber = await resolveClientPhone(room.clients['1'], 4);
-  }
-  if (!room.sessions['2']?.phoneNumber && room.clients['2']) {
-    room.sessions['2'].phoneNumber = await resolveClientPhone(room.clients['2'], 4);
-  }
+  const refreshedPhone1 = room.clients['1'] ? await resolveClientPhone(room.clients['1'], 4) : null;
+  const refreshedPhone2 = room.clients['2'] ? await resolveClientPhone(room.clients['2'], 4) : null;
+  if (refreshedPhone1) room.sessions['1'].phoneNumber = refreshedPhone1;
+  if (refreshedPhone2) room.sessions['2'].phoneNumber = refreshedPhone2;
 
   if (!room.sessions['1']?.phoneNumber || !room.sessions['2']?.phoneNumber) {
     return res.status(400).json({ error: 'Chips conectados, mas ainda estou detectando os numeros. Tente iniciar novamente em alguns segundos.' });
+  }
+
+  if (normalizePhone(room.sessions['1'].phoneNumber) === normalizePhone(room.sessions['2'].phoneNumber)) {
+    const duplicatedNumber = room.sessions['2'].phoneNumber;
+    await rejectDuplicatedChipSession(room, '2', roomId, duplicatedNumber);
+    return res.status(400).json({ error: `O Chip 2 carregou a mesma sessao do Chip 1 (${duplicatedNumber}). Conecte o Chip 2 novamente e escaneie o QR do aparelho correto.` });
   }
 
   room.conversationActive = true;
@@ -747,11 +778,15 @@ async function resolveWhatsAppChatId(client, phoneNumber) {
   throw new Error(`Numero ${phoneNumber} nao foi encontrado no WhatsApp. Confira se o chip destino esta ativo e com DDI/DDD corretos.`);
 }
 
-async function ensureSessionPhone(room, chipId) {
-  if (room.sessions[chipId]?.phoneNumber) return room.sessions[chipId].phoneNumber;
+async function ensureSessionPhone(room, chipId, roomId = null) {
   if (!room.clients[chipId]) return null;
-  const phoneNumber = await resolveClientPhone(room.clients[chipId], 6);
+  const resolvedPhone = await resolveClientPhone(room.clients[chipId], 6);
+  const phoneNumber = resolvedPhone || room.sessions[chipId]?.phoneNumber;
   if (phoneNumber && room.sessions[chipId]) {
+    if (roomId && hasSamePhone(room, chipId, phoneNumber)) {
+      await rejectDuplicatedChipSession(room, chipId, roomId, phoneNumber);
+      return null;
+    }
     room.sessions[chipId].phoneNumber = phoneNumber;
   }
   return phoneNumber;
@@ -771,7 +806,7 @@ async function sendInitialMessage(roomId) {
     if (!room.conversationActive) return;
 
     try {
-      const phoneNumber = await ensureSessionPhone(room, '2');
+      const phoneNumber = await ensureSessionPhone(room, '2', roomId);
       if (!phoneNumber) {
         pushSystemLog(room, 'Ainda nao detectei o numero do Chip 2. Vou tentar novamente em instantes.');
         sendInitialMessage(roomId);
@@ -822,7 +857,7 @@ function scheduleNextMessage(roomId, senderChipId) {
     }
 
     try {
-      const phoneNumber = await ensureSessionPhone(room, toChip);
+      const phoneNumber = await ensureSessionPhone(room, toChip, roomId);
       if (!phoneNumber) {
         pushSystemLog(room, `Ainda nao detectei o numero do Chip ${toChip}. Vou reagendar.`);
         scheduleNextMessage(roomId, senderChipId);
