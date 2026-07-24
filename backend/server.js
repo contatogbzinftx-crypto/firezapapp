@@ -29,7 +29,10 @@ function isValidAccessCode(code) {
 // ===== Estado ISOLADO por usuário (room) =====
 // rooms[roomId] = { clients: {1,2}, sessions: {1,2}, conversationActive, conversationInterval, baseText }
 const rooms = {};
+const SESSION_DATA_PATH = path.resolve(__dirname, '../sessions');
 const AUTHENTICATED_PROMOTION_MS = 5000;
+const CONNECTING_STALE_MS = 300000;
+const CLIENT_START_MAX_ATTEMPTS = 3;
 
 function getRoom(roomId) {
   if (!rooms[roomId]) {
@@ -97,8 +100,8 @@ function buildPuppeteerConfig() {
     headless: true,
     executablePath: CHROME_PATH,
     pipe: true,
-    timeout: 300000,
-    protocolTimeout: 300000,
+    timeout: 600000,
+    protocolTimeout: 600000,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -205,7 +208,43 @@ function touchSession(room, chipId, status) {
 function isStaleConnectingSession(session) {
   if (!session) return false;
   if (!['connecting', 'awaiting_scan'].includes(session.status)) return false;
-  return Date.now() - (session.updatedAt || session.startedAt || 0) > 120000;
+  return Date.now() - (session.updatedAt || session.startedAt || 0) > CONNECTING_STALE_MS;
+}
+
+function getClientId(roomId, chipId) {
+  return `room_${roomId}_chip_${chipId}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+function getLocalAuthSessionPath(roomId, chipId) {
+  return path.join(SESSION_DATA_PATH, `session-${getClientId(roomId, chipId)}`);
+}
+
+async function removeLocalAuthSession(roomId, chipId) {
+  try {
+    await fs.promises.rm(getLocalAuthSessionPath(roomId, chipId), { recursive: true, force: true });
+  } catch (error) {
+    console.error(`[${roomId}] Falha ao limpar sessao local do Chip ${chipId}:`, error.message);
+  }
+}
+
+function isBrowserStartupError(error) {
+  const message = String(error?.message || error || '');
+  return [
+    'Target.setDiscoverTargets',
+    'Timed out after',
+    'waiting for the WS endpoint',
+    'Protocol error',
+    'Session closed',
+    'Target closed',
+    'Navigation timeout'
+  ].some(fragment => message.includes(fragment));
+}
+
+function browserStartupMessage(attempt) {
+  if (attempt < CLIENT_START_MAX_ATTEMPTS) {
+    return `Chromium travou ao abrir o Chip. Reiniciando automaticamente (${attempt + 1}/${CLIENT_START_MAX_ATTEMPTS})...`;
+  }
+  return 'Nao consegui abrir o navegador interno para gerar o QR. A sessao foi limpa; clique em Conectar novamente.';
 }
 
 async function destroyClientQuietly(client) {
@@ -344,16 +383,21 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
       updatedAt: Date.now()
     };
 
-    const client = new Client({
+    if (currentSession && ['error', 'auth_failed'].includes(currentSession.status)) {
+      await removeLocalAuthSession(roomId, chipId);
+    }
+
+    const createClient = () => new Client({
       authStrategy: new LocalAuth({
-        clientId: `room_${roomId}_chip_${chipId}`,
-        dataPath: path.resolve(__dirname, '../sessions')
+        clientId: getClientId(roomId, chipId),
+        dataPath: SESSION_DATA_PATH
       }),
       puppeteer: buildPuppeteerConfig(),
       qrMaxRetries: 5,
       restartOnAuthFail: true
     });
 
+    const bindClientEvents = (client) => {
     client.on('qr', async (qr) => {
       console.log(`📱 [${roomId}] QR gerado para Chip ${chipId}`);
       try {
@@ -420,15 +464,43 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
         }
       }
     });
+    };
 
-    room.clients[chipId] = client;
-    client.initialize().catch(async (error) => {
-      console.error(`Erro ao inicializar Chip ${chipId}:`, error);
-      const message = error.message && error.message.includes('Target.setDiscoverTargets')
-        ? 'Chromium demorou para iniciar o WhatsApp. Tente conectar novamente; a sessao quebrada foi limpa.'
-        : error.message;
-      await resetChip(room, chipId, 'error', message);
-    });
+    const initializeClient = async (attempt = 1) => {
+      const client = createClient();
+      bindClientEvents(client);
+      room.clients[chipId] = client;
+
+      try {
+        await client.initialize();
+      } catch (error) {
+        console.error(`Erro ao inicializar Chip ${chipId} (tentativa ${attempt}):`, error);
+        await destroyClientQuietly(client);
+        if (room.clients[chipId] === client) delete room.clients[chipId];
+
+        if (isBrowserStartupError(error) && attempt < CLIENT_START_MAX_ATTEMPTS) {
+          if (attempt === 1) await removeLocalAuthSession(roomId, chipId);
+          if (room.sessions[chipId]) {
+            room.sessions[chipId].qr = null;
+            room.sessions[chipId].error = null;
+            touchSession(room, chipId, 'connecting');
+            room.sessions[chipId].messages.push({
+              from: 'Sistema',
+              text: browserStartupMessage(attempt),
+              timestamp: new Date().toISOString()
+            });
+          }
+          await wait(2500 * attempt);
+          return initializeClient(attempt + 1);
+        }
+
+        const message = isBrowserStartupError(error) ? browserStartupMessage(CLIENT_START_MAX_ATTEMPTS) : (error.message || String(error));
+        await removeLocalAuthSession(roomId, chipId);
+        await resetChip(room, chipId, 'error', message);
+      }
+    };
+
+    initializeClient();
 
     res.json({
       success: true,

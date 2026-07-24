@@ -327,7 +327,7 @@
     function showChipError(chipId, text) { const el = document.getElementById(`chipError${chipId}`); el.textContent = friendlyError(text); el.classList.remove('hidden'); }
     function friendlyError(text) {
       const value = text || 'Erro desconhecido ao conectar.';
-      if (value.includes('Target.setDiscoverTargets') || value.includes('Tempo de conexao expirou') || value.includes('Chromium demorou')) return 'A tentativa anterior travou no navegador interno e foi limpa. Clique em Conectar novamente para gerar um novo QR.';
+      if (value.includes('Target.setDiscoverTargets') || value.includes('Tempo de conexao expirou') || value.includes('Chromium demorou')) return 'O navegador interno travou e a plataforma esta limpando a sessao. Aguarde alguns segundos; se nao gerar QR apos as tentativas automaticas, clique em Conectar novamente.';
       if (value.includes('WS endpoint URL') || value.includes('Timed out after')) return 'O navegador interno demorou para iniciar. Tente conectar novamente.';
       return value;
     }
