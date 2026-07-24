@@ -620,10 +620,45 @@ async function sendWhatsAppMessage(client, phoneNumber, text) {
     throw new Error('Numero do destinatario ainda nao detectado.');
   }
 
-  const cleanNumber = String(phoneNumber).replace(/\D/g, '');
-  const numberId = await client.getNumberId(cleanNumber).catch(() => null);
-  const chatId = numberId?._serialized || `${cleanNumber}@c.us`;
+  const chatId = await resolveWhatsAppChatId(client, phoneNumber);
   return client.sendMessage(chatId, text);
+}
+
+function buildPhoneCandidates(phoneNumber) {
+  const clean = String(phoneNumber).replace(/\D/g, '');
+  const candidates = new Set();
+  if (!clean) return [];
+
+  candidates.add(clean);
+
+  const withoutLeadingZero = clean.replace(/^0+/, '');
+  if (withoutLeadingZero) candidates.add(withoutLeadingZero);
+
+  if (!withoutLeadingZero.startsWith('55') && (withoutLeadingZero.length === 10 || withoutLeadingZero.length === 11)) {
+    candidates.add(`55${withoutLeadingZero}`);
+  }
+
+  const brNumber = withoutLeadingZero.startsWith('55') ? withoutLeadingZero : `55${withoutLeadingZero}`;
+  candidates.add(brNumber);
+
+  if (brNumber.startsWith('55') && brNumber.length === 13 && brNumber[4] === '9') {
+    candidates.add(`${brNumber.slice(0, 4)}${brNumber.slice(5)}`);
+  }
+  if (brNumber.startsWith('55') && brNumber.length === 12) {
+    candidates.add(`${brNumber.slice(0, 4)}9${brNumber.slice(4)}`);
+  }
+
+  return [...candidates].filter(number => number.length >= 10);
+}
+
+async function resolveWhatsAppChatId(client, phoneNumber) {
+  const candidates = buildPhoneCandidates(phoneNumber);
+  for (const candidate of candidates) {
+    const numberId = await client.getNumberId(candidate).catch(() => null);
+    if (numberId?._serialized) return numberId._serialized;
+  }
+
+  throw new Error(`Numero ${phoneNumber} nao foi encontrado no WhatsApp. Confira se o chip destino esta ativo e com DDI/DDD corretos.`);
 }
 
 async function ensureSessionPhone(room, chipId) {
@@ -657,8 +692,9 @@ async function sendInitialMessage(roomId) {
         return;
       }
 
-      await sendWhatsAppMessage(room.clients['1'], phoneNumber, room.baseText);
+      const sent = await sendWhatsAppMessage(room.clients['1'], phoneNumber, room.baseText);
       console.log(`[${roomId}] Chip 1 -> Chip 2: ${room.baseText}`);
+      pushSystemLog(room, `Mensagem enviada do Chip 1 para o Chip 2 (${sent.id?._serialized || 'enviada'}).`);
 
       room.sessions['1'].messages.push({
         from: 'Chip 1',
@@ -706,8 +742,9 @@ function scheduleNextMessage(roomId, senderChipId) {
         return;
       }
 
-      await sendWhatsAppMessage(room.clients[fromChip], phoneNumber, variation);
+      const sent = await sendWhatsAppMessage(room.clients[fromChip], phoneNumber, variation);
       console.log(`[${roomId}] Chip ${fromChip} -> Chip ${toChip}: ${variation}`);
+      pushSystemLog(room, `Mensagem enviada do Chip ${fromChip} para o Chip ${toChip} (${sent.id?._serialized || 'enviada'}).`);
 
       room.sessions[fromChip].messages.push({
         from: `Chip ${fromChip}`,
