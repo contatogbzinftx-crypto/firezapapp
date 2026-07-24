@@ -33,6 +33,8 @@ const SESSION_DATA_PATH = path.resolve(__dirname, '../sessions');
 const AUTHENTICATED_PROMOTION_MS = 5000;
 const CONNECTING_STALE_MS = 300000;
 const CLIENT_START_MAX_ATTEMPTS = 3;
+const SEND_LOOKUP_TIMEOUT_MS = 4000;
+const SEND_MESSAGE_TIMEOUT_MS = 15000;
 
 function getRoom(roomId) {
   if (!rooms[roomId]) {
@@ -148,8 +150,8 @@ const warmupModes = {
   },
   agressivo: {
     label: 'Agressivo',
-    firstDelayMin: 12,
-    firstDelayMax: 25,
+    firstDelayMin: 1,
+    firstDelayMax: 2,
     delayMin: 120,
     delayMax: 180,
     warning: 'Use apenas em chips mais maturados. Este e o modo com menor intervalo.'
@@ -185,6 +187,16 @@ function getWarmupMode(mode) {
 
 function randomSeconds(min, max) {
   return Math.round(min + Math.random() * (max - min)) * 1000;
+}
+
+function withTimeout(promise, ms, label) {
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise).finally(() => clearTimeout(timer)),
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} excedeu ${ms}ms`)), ms);
+    })
+  ]);
 }
 
 function pushSystemLog(room, text) {
@@ -621,7 +633,7 @@ async function sendWhatsAppMessage(client, phoneNumber, text) {
   }
 
   const chatId = await resolveWhatsAppChatId(client, phoneNumber);
-  return client.sendMessage(chatId, text);
+  return withTimeout(client.sendMessage(chatId, text), SEND_MESSAGE_TIMEOUT_MS, 'Envio da mensagem');
 }
 
 function buildPhoneCandidates(phoneNumber) {
@@ -653,10 +665,19 @@ function buildPhoneCandidates(phoneNumber) {
 
 async function resolveWhatsAppChatId(client, phoneNumber) {
   const candidates = buildPhoneCandidates(phoneNumber);
+  let lastCandidate = null;
+
   for (const candidate of candidates) {
-    const numberId = await client.getNumberId(candidate).catch(() => null);
+    lastCandidate = candidate;
+    const numberId = await withTimeout(
+      client.getNumberId(candidate).catch(() => null),
+      SEND_LOOKUP_TIMEOUT_MS,
+      `Validacao do numero ${candidate}`
+    ).catch(() => null);
     if (numberId?._serialized) return numberId._serialized;
   }
+
+  if (lastCandidate) return `${lastCandidate}@c.us`;
 
   throw new Error(`Numero ${phoneNumber} nao foi encontrado no WhatsApp. Confira se o chip destino esta ativo e com DDI/DDD corretos.`);
 }
@@ -692,6 +713,7 @@ async function sendInitialMessage(roomId) {
         return;
       }
 
+      pushSystemLog(room, `Enviando mensagem inicial do Chip 1 para o Chip 2 (${phoneNumber}).`);
       const sent = await sendWhatsAppMessage(room.clients['1'], phoneNumber, room.baseText);
       console.log(`[${roomId}] Chip 1 -> Chip 2: ${room.baseText}`);
       pushSystemLog(room, `Mensagem enviada do Chip 1 para o Chip 2 (${sent.id?._serialized || 'enviada'}).`);
@@ -742,6 +764,7 @@ function scheduleNextMessage(roomId, senderChipId) {
         return;
       }
 
+      pushSystemLog(room, `Enviando mensagem do Chip ${fromChip} para o Chip ${toChip} (${phoneNumber}).`);
       const sent = await sendWhatsAppMessage(room.clients[fromChip], phoneNumber, variation);
       console.log(`[${roomId}] Chip ${fromChip} -> Chip ${toChip}: ${variation}`);
       pushSystemLog(room, `Mensagem enviada do Chip ${fromChip} para o Chip ${toChip} (${sent.id?._serialized || 'enviada'}).`);
