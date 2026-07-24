@@ -194,7 +194,7 @@
             <div class="step-index">6</div>
             <div>
               <h3 class="font-bold mb-2">Clique em Iniciar</h3>
-              <p class="text-slate-400 text-sm leading-6">Depois de iniciar, a primeira mensagem entra na fila. Ela nao sai instantaneamente; o log mostra que a mensagem foi agendada no modo escolhido.</p>
+              <p class="text-slate-400 text-sm leading-6">Depois de iniciar, a primeira mensagem entra na fila e deve sair em pouco tempo. As proximas seguem a cadencia do modo escolhido.</p>
             </div>
           </div>
           <div class="tutorial-step">
@@ -311,7 +311,7 @@
       if (mode === 'agressivo' && !confirm('Modo agressivo deve ser usado somente em chips mais maturados. Continuar?')) return;
       try {
         const response = await apiFetch('/api/conversation/start', { method: 'POST', body: JSON.stringify({ text, mode }) }); const data = await response.json();
-        if (data.success) { document.getElementById('conversationStatus').textContent = 'Ativa'; document.getElementById('conversationStatus').className = 'surface-soft px-3 py-2 text-emerald-300'; addLogItem(`Conversa iniciada em modo ${mode}. Aguarde o agendamento aparecer no log.`); }
+        if (data.success) { document.getElementById('conversationStatus').textContent = 'Ativa'; document.getElementById('conversationStatus').className = 'surface-soft px-3 py-2 text-emerald-300'; addLogItem(`Conversa iniciada em modo ${mode}. A primeira mensagem deve sair em pouco tempo.`); }
         else notify(data.error || 'Erro ao iniciar.', 'error');
       } catch (error) { notify('Erro: ' + error.message, 'error'); }
     }

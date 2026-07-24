@@ -122,29 +122,29 @@ function buildPuppeteerConfig() {
 const warmupModes = {
   iniciante: {
     label: 'Iniciante',
-    firstDelayMin: 480,
-    firstDelayMax: 720,
+    firstDelayMin: 12,
+    firstDelayMax: 25,
     delayMin: 480,
     delayMax: 720
   },
   leve: {
     label: 'Leve',
-    firstDelayMin: 300,
-    firstDelayMax: 480,
+    firstDelayMin: 12,
+    firstDelayMax: 25,
     delayMin: 300,
     delayMax: 480
   },
   moderado: {
     label: 'Moderado',
-    firstDelayMin: 180,
-    firstDelayMax: 300,
+    firstDelayMin: 12,
+    firstDelayMax: 25,
     delayMin: 180,
     delayMax: 300
   },
   agressivo: {
     label: 'Agressivo',
-    firstDelayMin: 120,
-    firstDelayMax: 180,
+    firstDelayMin: 12,
+    firstDelayMax: 25,
     delayMin: 120,
     delayMax: 180,
     warning: 'Use apenas em chips mais maturados. Este e o modo com menor intervalo.'
@@ -473,6 +473,27 @@ app.post('/api/conversation/start', authMiddleware, async (req, res) => {
   });
 });
 
+async function sendWhatsAppMessage(client, phoneNumber, text) {
+  if (!phoneNumber) {
+    throw new Error('Numero do destinatario ainda nao detectado.');
+  }
+
+  const cleanNumber = String(phoneNumber).replace(/\D/g, '');
+  const numberId = await client.getNumberId(cleanNumber).catch(() => null);
+  const chatId = numberId?._serialized || `${cleanNumber}@c.us`;
+  return client.sendMessage(chatId, text);
+}
+
+async function ensureSessionPhone(room, chipId) {
+  if (room.sessions[chipId]?.phoneNumber) return room.sessions[chipId].phoneNumber;
+  if (!room.clients[chipId]) return null;
+  const phoneNumber = await resolveClientPhone(room.clients[chipId], 6);
+  if (phoneNumber && room.sessions[chipId]) {
+    room.sessions[chipId].phoneNumber = phoneNumber;
+  }
+  return phoneNumber;
+}
+
 // ===== Enviar mensagem inicial =====
 async function sendInitialMessage(roomId) {
   const room = rooms[roomId];
@@ -487,10 +508,14 @@ async function sendInitialMessage(roomId) {
     if (!room.conversationActive) return;
 
     try {
-      const phoneNumber = room.sessions['2']?.phoneNumber;
-      if (!phoneNumber) return;
+      const phoneNumber = await ensureSessionPhone(room, '2');
+      if (!phoneNumber) {
+        pushSystemLog(room, 'Ainda nao detectei o numero do Chip 2. Vou tentar novamente em instantes.');
+        sendInitialMessage(roomId);
+        return;
+      }
 
-      await room.clients['1'].sendMessage(`${phoneNumber}@c.us`, room.baseText);
+      await sendWhatsAppMessage(room.clients['1'], phoneNumber, room.baseText);
       console.log(`[${roomId}] Chip 1 -> Chip 2: ${room.baseText}`);
 
       room.sessions['1'].messages.push({
@@ -502,7 +527,8 @@ async function sendInitialMessage(roomId) {
       scheduleNextMessage(roomId, 2);
     } catch (error) {
       console.error(`Erro mensagem inicial [${roomId}]:`, error);
-      room.conversationActive = false;
+      pushSystemLog(room, `Erro ao enviar primeira mensagem: ${error.message}. Vou tentar novamente.`);
+      sendInitialMessage(roomId);
     }
   }, initialDelay);
 }
@@ -525,16 +551,20 @@ function scheduleNextMessage(roomId, senderChipId) {
     if (!room.conversationActive) return;
 
     if (!room.clients[fromChip] || !room.clients[toChip]) {
-      console.log(`❌ [${roomId}] Chip desconectou`);
+      pushSystemLog(room, 'Um dos chips desconectou. A conversa foi pausada.');
       room.conversationActive = false;
       return;
     }
 
     try {
-      const phoneNumber = room.sessions[toChip]?.phoneNumber;
-      if (!phoneNumber) return;
+      const phoneNumber = await ensureSessionPhone(room, toChip);
+      if (!phoneNumber) {
+        pushSystemLog(room, `Ainda nao detectei o numero do Chip ${toChip}. Vou reagendar.`);
+        scheduleNextMessage(roomId, senderChipId);
+        return;
+      }
 
-      await room.clients[fromChip].sendMessage(`${phoneNumber}@c.us`, variation);
+      await sendWhatsAppMessage(room.clients[fromChip], phoneNumber, variation);
       console.log(`[${roomId}] Chip ${fromChip} -> Chip ${toChip}: ${variation}`);
 
       room.sessions[fromChip].messages.push({
@@ -546,7 +576,8 @@ function scheduleNextMessage(roomId, senderChipId) {
       scheduleNextMessage(roomId, fromChip === '1' ? 2 : 1);
     } catch (error) {
       console.error(`Erro [${roomId}] Chip ${fromChip}:`, error);
-      room.conversationActive = false;
+      pushSystemLog(room, `Erro ao enviar mensagem: ${error.message}. Vou reagendar.`);
+      scheduleNextMessage(roomId, senderChipId);
     }
   }, delay);
 }
