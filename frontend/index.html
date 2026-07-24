@@ -294,7 +294,7 @@
           const response = await apiFetch(`/api/status/${chipId}`); const data = await response.json();
           if (data.qr) { document.getElementById(`qr${chipId}`).src = data.qr; document.getElementById(`qrContainer${chipId}`).classList.remove('hidden'); clearChipError(chipId); }
           if (data.error) showChipError(chipId, data.error);
-          if (data.status === 'connected') { document.getElementById(`qrContainer${chipId}`).classList.add('hidden'); document.getElementById(`phoneNumber${chipId}`).textContent = data.phoneNumber ? `+${data.phoneNumber}` : 'Conectado'; chipStatus[chipId] = 'connected'; updateStatus(chipId, 'connected'); clearChipError(chipId); }
+          if (data.status === 'connected' || data.status === 'authenticated') { document.getElementById(`qrContainer${chipId}`).classList.add('hidden'); document.getElementById(`phoneNumber${chipId}`).textContent = data.phoneNumber ? `+${data.phoneNumber}` : 'Conectado'; chipStatus[chipId] = 'connected'; updateStatus(chipId, 'connected'); clearChipError(chipId); }
           else if (data.status === 'awaiting_scan' || data.status === 'connecting') { chipStatus[chipId] = 'connecting'; updateStatus(chipId, 'connecting'); }
           else if (data.status === 'error') { document.getElementById(`qrContainer${chipId}`).classList.add('hidden'); chipStatus[chipId] = 'error'; updateStatus(chipId, 'error'); }
           else if (data.status === 'disconnected') { chipStatus[chipId] = 'disconnected'; updateStatus(chipId, 'disconnected'); }

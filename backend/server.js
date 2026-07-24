@@ -29,6 +29,7 @@ function isValidAccessCode(code) {
 // ===== Estado ISOLADO por usuário (room) =====
 // rooms[roomId] = { clients: {1,2}, sessions: {1,2}, conversationActive, conversationInterval, baseText }
 const rooms = {};
+const AUTHENTICATED_PROMOTION_MS = 5000;
 
 function getRoom(roomId) {
   if (!rooms[roomId]) {
@@ -203,7 +204,7 @@ function touchSession(room, chipId, status) {
 
 function isStaleConnectingSession(session) {
   if (!session) return false;
-  if (!['connecting', 'awaiting_scan', 'authenticated'].includes(session.status)) return false;
+  if (!['connecting', 'awaiting_scan'].includes(session.status)) return false;
   return Date.now() - (session.updatedAt || session.startedAt || 0) > 120000;
 }
 
@@ -260,16 +261,33 @@ async function markChipConnected(room, chipId, client, roomId, source) {
   return true;
 }
 
+async function promoteAuthenticatedSession(room, chipId, roomId, force = false) {
+  const session = room.sessions[chipId];
+  if (!session || session.status !== 'authenticated') return false;
+  const authenticatedAt = session.authenticatedAt || session.updatedAt || Date.now();
+  if (!force && Date.now() - authenticatedAt < AUTHENTICATED_PROMOTION_MS) return false;
+
+  if (room.clients[chipId]) {
+    return markChipConnected(room, chipId, room.clients[chipId], roomId, 'autenticado');
+  }
+
+  touchSession(room, chipId, 'connected');
+  session.qr = null;
+  session.error = null;
+  return true;
+}
+
 function scheduleAuthenticatedFallback(room, chipId, client, roomId) {
   setTimeout(async () => {
     if (!room.sessions[chipId] || room.sessions[chipId].status === 'connected') return;
     try {
-      await markChipConnected(room, chipId, client, roomId, 'autenticado');
+      await promoteAuthenticatedSession(room, chipId, roomId, true);
     } catch (error) {
       console.error(`Fallback autenticado Chip ${chipId}:`, error.message);
       if (room.sessions[chipId]?.status !== 'connected') {
-        touchSession(room, chipId, 'authenticated');
+        touchSession(room, chipId, 'connected');
         room.sessions[chipId].qr = null;
+        room.sessions[chipId].error = null;
       }
     }
   }, 8000);
@@ -322,6 +340,7 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
       messages: [],
       error: null,
       startedAt: Date.now(),
+      authenticatedAt: null,
       updatedAt: Date.now()
     };
 
@@ -348,7 +367,7 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
 
     client.on('loading_screen', (percent, message) => {
       console.log(`[${roomId}] Chip ${chipId} carregando WhatsApp: ${percent}% ${message || ''}`);
-      if (room.sessions[chipId] && room.sessions[chipId].status !== 'connected') {
+      if (room.sessions[chipId] && !['connected', 'authenticated'].includes(room.sessions[chipId].status)) {
         touchSession(room, chipId, 'connecting');
       }
     });
@@ -369,7 +388,9 @@ app.post('/api/connect/:chipId', authMiddleware, async (req, res) => {
       console.log(`[${roomId}] Chip ${chipId} autenticado`);
       if (room.sessions[chipId] && room.sessions[chipId].status !== 'connected') {
         touchSession(room, chipId, 'authenticated');
+        room.sessions[chipId].authenticatedAt = Date.now();
         room.sessions[chipId].qr = null;
+        room.sessions[chipId].error = null;
       }
       scheduleAuthenticatedFallback(room, chipId, client, roomId);
     });
@@ -437,6 +458,10 @@ app.get('/api/status/:chipId', authMiddleware, async (req, res) => {
     return res.json({ status: 'error', qr: null, phoneNumber: null, error: room.sessions[chipId].error, messages: room.sessions[chipId].messages.slice(-20) });
   }
 
+  if (room.sessions[chipId].status === 'authenticated') {
+    await promoteAuthenticatedSession(room, chipId, roomId);
+  }
+
   res.json({
     status: room.sessions[chipId].status,
     qr: room.sessions[chipId].qr,
@@ -487,6 +512,9 @@ app.post('/api/conversation/start', authMiddleware, async (req, res) => {
   if (!room.clients['1'] || !room.clients['2']) {
     return res.status(400).json({ error: 'Conecte os dois chips primeiro' });
   }
+
+  await promoteAuthenticatedSession(room, '1', roomId, true);
+  await promoteAuthenticatedSession(room, '2', roomId, true);
 
   if (room.sessions['1']?.status !== 'connected' || room.sessions['2']?.status !== 'connected') {
     return res.status(400).json({ error: 'Ambos os chips precisam estar conectados' });
